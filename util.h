@@ -81,8 +81,18 @@
 #include <numeric>
 #include <array>
 
-#ifdef __OMP
+#ifdef MUI_OMP
 #include <omp.h>
+#endif
+
+#ifdef MUI_OCL
+#define CL_HPP_TARGET_OPENCL_VERSION 210
+#define CL_HPP_ENABLE_EXCEPTIONS
+#if defined(__APPLE__) || defined(__MACOSX)
+#include <OpenCL/cl2.hpp>
+#else
+#include <CL/cl2.hpp>
+#endif
 #endif
 
 #include "stream.h"

@@ -225,9 +225,21 @@ private: // data members
 	bool initialized_pts_;
 
 public:
-	uniface( const char URI[] ) : uniface( comm_factory::create_comm(URI) ) {}
-	uniface( std::string const &URI ) : uniface( comm_factory::create_comm(URI.c_str()) ) {}
+	uniface( const char URI[] ) : uniface( comm_factory::create_comm(URI) ) {
+		#ifdef MUI_OCL
+		initOpenCL();
+		#endif
+	}
+	uniface( std::string const &URI ) : uniface( comm_factory::create_comm(URI.c_str()) ) {
+		#ifdef MUI_OCL
+		initOpenCL();
+		#endif
+	}
 	uniface( communicator* comm_ ) : comm(comm_), initialized_pts_(false) {
+		#ifdef MUI_OCL
+		initOpenCL();
+		#endif
+
 		using namespace std::placeholders;
 
 		peers.resize(comm->remote_size());
@@ -256,6 +268,50 @@ public:
 
 	uniface( const uniface& ) = delete;
 	uniface& operator=( const uniface& ) = delete;
+
+	void initOpenCL() {
+		try {
+			std::vector<cl::Platform> platforms;
+			cl::Platform::get(&platforms);
+			if (platforms.size() == 0) {
+				std::cerr << "MUI Error [uniface.h]: OpenCL platform count is zero" << std::endl;
+				std::abort();
+			}
+
+			//Print OpenCL devie header line
+			std::cout << "OpenCL Devices Found:" << std::endl;
+
+			//Iterate through platforms and print out discovered devices
+			std::string platformVendor;
+			for ( size_t i = 0; i < platforms.size(); ++i ) {
+				//Find platform name
+				platforms[i].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platformVendor);
+
+				//Get context properties for platform
+				cl_context_properties properties[] =
+				{
+						CL_CONTEXT_PLATFORM,
+						(cl_context_properties)(platforms[i])(),
+						0
+				};
+
+				//Create platform context
+				cl::Context context(CL_DEVICE_TYPE_ALL, properties);
+
+				//Get list of devices for platform
+				std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
+
+				//Print devices found
+				for (unsigned int i = 0; i < devices.size(); ++i) {
+					std::cout << "\t" << platformVendor << " " << devices[i].getInfo<CL_DEVICE_NAME>() << std::endl;
+				}
+			}
+		}
+		catch (cl::Error& err) {
+			std::cerr << "MUI Error [uniface.h]: Error during OpenCL initialisation: "
+					  << err.what() << "("	<< err.err() << ")"	<< std::endl;
+		}
+	}
     
     /** \brief Push data with tag "attr" to buffer
      * Push data with tag "attr" to buffer. If using CONFIG::FIXEDPOINTS=true,
