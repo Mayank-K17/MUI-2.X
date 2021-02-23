@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmuiCUDA.a  CMakeFiles/muiCUDA.dir/mui_cuda.cpp.o
+/usr/bin/ranlib libmuiCUDA.a

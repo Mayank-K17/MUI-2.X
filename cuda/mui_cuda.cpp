@@ -1,7 +1,7 @@
 /*****************************************************************************
 * Multiscale Universal Interface Code Coupling Library                       *
 *                                                                            *
-* Copyright (C) 2019 Y. H. Tang, S. Kudo, X. Bian, Z. Li, G. E. Karniadakis  *
+* Copyright (C) 2021 S. M. Longshaw                                          *
 *                                                                            *
 * This software is jointly licensed under the Apache License, Version 2.0    *
 * and the GNU General Public License version 3, you may use it according     *
@@ -35,70 +35,67 @@
 *                                                                            *
 * You should have received a copy of the GNU General Public License          *
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.      *
-*****************************************************************************/
+******************************************************************************/
 
 /**
- * @file sampler_mov_avg.h
- * @author Y. H. Tang
- * @date 10 February 2014
- * @brief Spatial sampler that provides a value at a point using a moving
- * average interpolation.
+ * @file mui_cuda.cpp
+ * @author S. M. Longshaw
+ * @date 19 February 2021
+ * @brief Encapsulating methods for MUI CUDA kernels
  */
 
-#ifndef MUI_SAMPLER_MOVING_AVG_H_
-#define MUI_SAMPLER_MOVING_AVG_H_
+#include "mui_cuda.h"
 
-#include "../config.h"
-#include "../sampler.h"
-#include <cmath>
+// Constructor
+template <typename TYPE, typename CONFIG>
+mui::mui_cuda::mui_cuda() {}
 
-namespace mui {
+// Destuctor
+mui::mui_cuda::~mui_cuda() {}
 
-template<typename CONFIG=default_config, typename O_TP=typename CONFIG::REAL, typename I_TP=O_TP>
-class sampler_moving_average {
-public:
-	using OTYPE      = O_TP;
-	using ITYPE      = I_TP;
-	using REAL       = typename CONFIG::REAL;
-	using INT        = typename CONFIG::INT;
-	using point_type = typename CONFIG::point_type;
+bool mui::mui_cuda::initCUDA() {
+	/*
+	int deviceCount=0;
+	cudaGetDeviceCount(&deviceCount);
 
-	sampler_moving_average( point_type bbox_ ) {
-		bbox  = bbox_;
+	int gid0=-10;
+	cudaGetDevice(&gid0);
+
+	//-Driver information.
+	int driverVersion = 0, runtimeVersion = 0;
+	cudaDriverGetVersion(&driverVersion);
+	cudaRuntimeGetVersion(&runtimeVersion);
+
+	std::cout << "MUI [uniface.h]: CUDA driver/runtime version: " << driverVersion/1000 << "." << (driverVersion%100)/10 << "/"
+			  << runtimeVersion/1000 << "." << (runtimeVersion%100)/10 << std::endl;
+
+	if(!deviceCount) {
+		std::cout << "MUI Error [uniface.h]: There are no available CUDA device(s)" << std::endl;
+		return false;
 	}
+	else {
+		std::cout << "MUI [uniface.h]: Detected CUDA device(s): " << deviceCount << std::endl;
 
-	template<template<typename,typename> class CONTAINER>
-	inline OTYPE filter( point_type focus, const CONTAINER<ITYPE,CONFIG> &data_points ) const {
-	    size_t n(0);
-		OTYPE vsum(0);
-		for( size_t i = 0 ; i < data_points.size() ; i++ ) {
-            point_type dx(REAL(0.0));
-            for (size_t j = 0 ; j < CONFIG::D ; j++) {
-                dx[j] = std::fabs(data_points[i].first[j] - focus[j]);
-            }
+		for(int dev = 0; dev < deviceCount; dev++) {
+			cudaSetDevice(dev);
 
-			bool within = true;
-			for( size_t k = 0 ; within && k < CONFIG::D ; k++ ) {
-				within = within && ( dx[k] < bbox[k] );
-			}
+			cudaDeviceProp deviceProp;
+			cudaGetDeviceProperties(&deviceProp, dev);
 
-			if ( within ) {
-				vsum += data_points[i].second;
-				n++;
-			}
+			std::cout << dev << ": " << deviceProp.name << std::endl;
+			std::cout << "\tCUDA compute version: " << deviceProp.major << "." << deviceProp.minor << std::endl;
+			std::cout << "\tGlobal memory: " << static_cast<float>(deviceProp.totalGlobalMem)/1048576.0f << "MB" << std::endl;
 		}
-		if (CONFIG::DEBUG) assert( n!=0 );
-		return n ? ( vsum / OTYPE(n) ): OTYPE(0.);
+
+		// Temporary - set first device in index (must be at least 1 but need to improve this for multi-GPU environments)
+		cudaSetDevice(0);
+
+		cudaMalloc(&points_cuda, 200*sizeof(point_type));
+		cudaMalloc(&values_cuda, 200*sizeof(REAL));
+
+		return true;
 	}
-
-	inline geometry::any_shape<CONFIG> support( point_type focus, REAL domain_mag ) const {
-	    return geometry::box<CONFIG>( focus - REAL(0.5) * bbox, focus + REAL(0.5) * bbox );
-	}
-
-protected:
-	point_type bbox;
-};
-
+	*/
+	return true;
 }
 
-#endif /* MUI_SAMPLER_MOVING_AVG_H_ */

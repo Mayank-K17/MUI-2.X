@@ -1,7 +1,7 @@
 /*****************************************************************************
 * Multiscale Universal Interface Code Coupling Library                       *
 *                                                                            *
-* Copyright (C) 2019 Y. H. Tang, S. Kudo, X. Bian, Z. Li, G. E. Karniadakis  *
+* Copyright (C) 2021 S. M. Longshaw                                          *
 *                                                                            *
 * This software is jointly licensed under the Apache License, Version 2.0    *
 * and the GNU General Public License version 3, you may use it according     *
@@ -35,70 +35,35 @@
 *                                                                            *
 * You should have received a copy of the GNU General Public License          *
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.      *
-*****************************************************************************/
+******************************************************************************/
 
 /**
- * @file sampler_mov_avg.h
- * @author Y. H. Tang
- * @date 10 February 2014
- * @brief Spatial sampler that provides a value at a point using a moving
- * average interpolation.
+ * @file mui_cuda.h
+ * @author S. M. Longshaw
+ * @date 19 February 2021
+ * @brief Encapsulating methods for MUI CUDA kernels
  */
 
-#ifndef MUI_SAMPLER_MOVING_AVG_H_
-#define MUI_SAMPLER_MOVING_AVG_H_
+#ifndef MUI_CUDA_H
+#define MUI_CUDA_H
 
-#include "../config.h"
-#include "../sampler.h"
-#include <cmath>
+#include "../mui.h"
 
 namespace mui {
 
-template<typename CONFIG=default_config, typename O_TP=typename CONFIG::REAL, typename I_TP=O_TP>
-class sampler_moving_average {
+template <typename TYPE, typename CONFIG>
+class mui_cuda {
 public:
-	using OTYPE      = O_TP;
-	using ITYPE      = I_TP;
-	using REAL       = typename CONFIG::REAL;
-	using INT        = typename CONFIG::INT;
-	using point_type = typename CONFIG::point_type;
+	//using REAL = typename CONFIG::REAL;
+	//using point_type = typename CONFIG::point_type;
 
-	sampler_moving_average( point_type bbox_ ) {
-		bbox  = bbox_;
-	}
+public:
+	mui_cuda();
+	~mui_cuda();
 
-	template<template<typename,typename> class CONTAINER>
-	inline OTYPE filter( point_type focus, const CONTAINER<ITYPE,CONFIG> &data_points ) const {
-	    size_t n(0);
-		OTYPE vsum(0);
-		for( size_t i = 0 ; i < data_points.size() ; i++ ) {
-            point_type dx(REAL(0.0));
-            for (size_t j = 0 ; j < CONFIG::D ; j++) {
-                dx[j] = std::fabs(data_points[i].first[j] - focus[j]);
-            }
-
-			bool within = true;
-			for( size_t k = 0 ; within && k < CONFIG::D ; k++ ) {
-				within = within && ( dx[k] < bbox[k] );
-			}
-
-			if ( within ) {
-				vsum += data_points[i].second;
-				n++;
-			}
-		}
-		if (CONFIG::DEBUG) assert( n!=0 );
-		return n ? ( vsum / OTYPE(n) ): OTYPE(0.);
-	}
-
-	inline geometry::any_shape<CONFIG> support( point_type focus, REAL domain_mag ) const {
-	    return geometry::box<CONFIG>( focus - REAL(0.5) * bbox, focus + REAL(0.5) * bbox );
-	}
-
-protected:
-	point_type bbox;
+	bool initCUDA();
 };
 
 }
 
-#endif /* MUI_SAMPLER_MOVING_AVG_H_ */
+#endif /* MUI_CUDA_H */

@@ -96,7 +96,7 @@ inline std::vector<std::unique_ptr<uniface<CONFIG>>> create_uniface( std::string
 
         for( auto &i : all_hashes ) unique_ifs.insert( i );
         n_unique = unique_ifs.size();
-        std::cout << "MUI Info [lib_mpi_multidomain]: " << n_unique << " distinct interface(s) found" << std::endl;
+        std::cout << "MUI [lib_mpi_multidomain]: " << n_unique << " distinct interface(s) found" << std::endl;
     } else {
         gather( ( int )interfaces.size(), world );
         MPI_Gatherv( my_hashes.data(), my_hashes.size(), MPI_INT, NULL, NULL, NULL, MPI_INT, 0, world );

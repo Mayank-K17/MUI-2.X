@@ -44,6 +44,7 @@
  * @brief Defines the spatial_storage data type.
  */
 
+#ifndef SPATIAL_STORAGE_H
 #define SPATIAL_STORAGE_H
 
 #include <exception>
@@ -58,6 +59,7 @@ class spatial_storage {
 private: // type definitions
 	using storage_t = STORAGE;
 public:
+	using REAL = typename CONFIG::REAL;
 	using point_type = typename CONFIG::point_type;
 	using EXCEPTION = typename CONFIG::EXCEPTION;
 
@@ -110,23 +112,45 @@ public:
 			rhs.destroy_if_bin_();
 		}
 	}
-	
 
 	// no lock internally; it's job of uniface because
 	// we need more large lock if there is no rw-lock.
 	template<typename REGION, typename FOCUS, typename SAMPLER, typename ... ADDITIONAL>
 	typename SAMPLER::OTYPE
-	query(const REGION& reg, const FOCUS& f, SAMPLER& s, ADDITIONAL && ... additional) const {
+	query(const REGION& reg, const FOCUS& f, SAMPLER& s, point_type* points_cuda, REAL* values_cuda, ADDITIONAL && ... additional) const {
+		// Empty data check to avoid sampling errors
 		if( data_.empty() )
 			return s.filter( f, virtual_container<typename SAMPLER::ITYPE,CONFIG>(std::vector<std::pair<point_type,typename SAMPLER::ITYPE> >(),std::vector<bool>()), additional... );
-		if( !is_built() ) EXCEPTION(std::logic_error("MUI Error [spatial_storage.h]: Query error. "
-		                                             "Bin not built yet. Internal data corrupted."));
+		if( !is_built() ) // Will only reach here if bin object not constructed, which shouldn't be possible if data_ isn't empty
+			EXCEPTION(std::logic_error("MUI Error [spatial_storage.h]: Query error, bin not built, internal data corrupt."));
+
 		const auto& st = storage_cast<const std::vector<std::pair<point_type,typename SAMPLER::ITYPE> >& >(data_);
-		return s.filter( f, virtual_container<typename SAMPLER::ITYPE,CONFIG>(st,bin_.query(reg)), additional...);
+		// data_points represents the refined data set passed to the spatial sampler
+		const auto& data_points = virtual_container<typename SAMPLER::ITYPE,CONFIG>(st, bin_.query(reg));
+
+		/*
+		point_type* points_copy = new point_type[data_points.size()];
+		REAL* values_copy = new REAL[data_points.size()];
+
+		for( size_t i = 0 ; i < data_points.size() ; i++ ) {
+			points_copy[i] = data_points[i].first;
+			values_copy[i] = data_points[i].second;
+		}
+
+		cudaMemcpy(points_copy, points_cuda, data_points.size()*sizeof(point_type), cudaMemcpyHostToDevice);
+		cudaMemcpy(values_copy, values_cuda, data_points.size()*sizeof(REAL), cudaMemcpyHostToDevice);
+
+		delete[] points_copy;
+		delete[] values_copy;
+		*/
+
+		typename SAMPLER::OTYPE ret_val = s.filter( f, data_points, additional... );
+
+		return ret_val;
 	}
 
 	void build() {
-		if( is_built() ) EXCEPTION(std::logic_error("MUI Error [spatial_storage.h]: Build error. Cannot build twice."));
+		if( is_built() ) EXCEPTION(std::logic_error("MUI Error [spatial_storage.h]: Build error, cannot build bin twice."));
 		if( !data_.empty() ){
 			data_.apply_visitor(construct_{(void*)&bin_});
 			is_bin_ = true;
@@ -135,14 +159,16 @@ public:
 
 	template<typename FOCUS, typename SAMPLER, typename ...ADDITIONAL>
 	typename SAMPLER::OTYPE
-	build_and_query_ts(const FOCUS& f, SAMPLER& s, ADDITIONAL && ... additional) {
+	build_and_query_ts(const FOCUS& f, SAMPLER& s, point_type* points_cuda, REAL* values_cuda, ADDITIONAL && ... additional) {
 		// this method is thread-safe. other methods are not.
 		{
 			std::unique_lock<std::mutex> lock(mutex_);
 			if( !is_built() ) build();
 		}
 
-		return query(s.support(f, bin_.domain_size()).bbox(), f, s, additional...);
+		typename SAMPLER::OTYPE ret_val = query(s.support(f, bin_.domain_size()).bbox(), f, s, points_cuda, values_cuda, additional...);
+
+		return ret_val;
 	}
 
 	void insert( storage_t storage ) {
@@ -178,6 +204,7 @@ private:
 	};
 	mutable std::mutex mutex_;
 };
+
 }
 
-#define SPATIAL_STORAGE_H
+#endif /* SPATIAL_STORAGE_H */

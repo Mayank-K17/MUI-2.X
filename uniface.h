@@ -74,6 +74,10 @@
 namespace py = pybind11;
 #endif
 
+#ifdef MUI_CUDA
+#include "cuda/mui_cuda.h"
+#endif
+
 namespace mui {
 
 template<typename CONFIG = default_config>
@@ -226,18 +230,18 @@ private: // data members
 
 public:
 	uniface( const char URI[] ) : uniface( comm_factory::create_comm(URI) ) {
-		#ifdef MUI_OCL
-		initOpenCL();
+		#ifdef MUI_CUDA
+		//initCUDA();
 		#endif
 	}
 	uniface( std::string const &URI ) : uniface( comm_factory::create_comm(URI.c_str()) ) {
-		#ifdef MUI_OCL
-		initOpenCL();
+		#ifdef MUI_CUDA
+		//initCUDA();
 		#endif
 	}
 	uniface( communicator* comm_ ) : comm(comm_), initialized_pts_(false) {
-		#ifdef MUI_OCL
-		initOpenCL();
+		#ifdef MUI_CUDA
+		//initCUDA();
 		#endif
 
 		using namespace std::placeholders;
@@ -268,50 +272,6 @@ public:
 
 	uniface( const uniface& ) = delete;
 	uniface& operator=( const uniface& ) = delete;
-
-	void initOpenCL() {
-		try {
-			std::vector<cl::Platform> platforms;
-			cl::Platform::get(&platforms);
-			if (platforms.size() == 0) {
-				std::cerr << "MUI Error [uniface.h]: OpenCL platform count is zero" << std::endl;
-				std::abort();
-			}
-
-			//Print OpenCL devie header line
-			std::cout << "OpenCL Devices Found:" << std::endl;
-
-			//Iterate through platforms and print out discovered devices
-			std::string platformVendor;
-			for ( size_t i = 0; i < platforms.size(); ++i ) {
-				//Find platform name
-				platforms[i].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platformVendor);
-
-				//Get context properties for platform
-				cl_context_properties properties[] =
-				{
-						CL_CONTEXT_PLATFORM,
-						(cl_context_properties)(platforms[i])(),
-						0
-				};
-
-				//Create platform context
-				cl::Context context(CL_DEVICE_TYPE_ALL, properties);
-
-				//Get list of devices for platform
-				std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
-
-				//Print devices found
-				for (unsigned int i = 0; i < devices.size(); ++i) {
-					std::cout << "\t" << platformVendor << " " << devices[i].getInfo<CL_DEVICE_NAME>() << std::endl;
-				}
-			}
-		}
-		catch (cl::Error& err) {
-			std::cerr << "MUI Error [uniface.h]: Error during OpenCL initialisation: "
-					  << err.what() << "("	<< err.err() << ")"	<< std::endl;
-		}
-	}
     
     /** \brief Push data with tag "attr" to buffer
      * Push data with tag "attr" to buffer. If using CONFIG::FIXEDPOINTS=true,
@@ -381,13 +341,15 @@ public:
         size_t n = points.size();
         py::array_t<REAL, py::array::c_style> points_np({n, n});
         auto points_np_arr = points_np.template mutable_unchecked<2>();
-        for (std::size_t i = 0; i < n; i++)
-            for (std::size_t j = 0; j < D; j++)
+        for (std::size_t i = 0; i < n; i++) {
+            for (std::size_t j = 0; j < D; j++) {
                 points_np_arr(i,j) = (points[i].data())[j];
+            }
+        }
         return points_np;
     }
-
 #endif
+
     /** \brief Fetch a single parameter from the interface
 	  * Overloaded \c fetch to fetch a single parameter of name \c attr.
 	  * There is no barrier on this fetch as there is no time associated

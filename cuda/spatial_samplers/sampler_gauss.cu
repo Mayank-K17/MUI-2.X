@@ -1,7 +1,7 @@
 /*****************************************************************************
 * Multiscale Universal Interface Code Coupling Library                       *
 *                                                                            *
-* Copyright (C) 2019 Y. H. Tang, S. Kudo, X. Bian, Z. Li, G. E. Karniadakis  *
+* Copyright (C) 2021 S. M. Longshaw                                          *
 *                                                                            *
 * This software is jointly licensed under the Apache License, Version 2.0    *
 * and the GNU General Public License version 3, you may use it according     *
@@ -38,67 +38,35 @@
 *****************************************************************************/
 
 /**
- * @file sampler_mov_avg.h
- * @author Y. H. Tang
- * @date 10 February 2014
- * @brief Spatial sampler that provides a value at a point using a moving
- * average interpolation.
+ * @file sampler_gauss.cu
+ * @author S. M. Longshaw
+ * @date 18 February 2021
+ * @brief CUDA kernel spatial sampler that provides a value at a point
+ * using Gaussian interpolation.
  */
 
-#ifndef MUI_SAMPLER_MOVING_AVG_H_
-#define MUI_SAMPLER_MOVING_AVG_H_
-
-#include "../config.h"
-#include "../sampler.h"
-#include <cmath>
-
 namespace mui {
+	__global__
+	void filter_cuda( point_type focus, point_type* points, double* values, size_t count, double r, double h ) {
+		int index = threadIdx.x;
+		int stride = blockDim.x;
 
-template<typename CONFIG=default_config, typename O_TP=typename CONFIG::REAL, typename I_TP=O_TP>
-class sampler_moving_average {
-public:
-	using OTYPE      = O_TP;
-	using ITYPE      = I_TP;
-	using REAL       = typename CONFIG::REAL;
-	using INT        = typename CONFIG::INT;
-	using point_type = typename CONFIG::point_type;
+		double nh = std::pow(2.0*3.1415926535897932385*h,-0.5*3);
 
-	sampler_moving_average( point_type bbox_ ) {
-		bbox  = bbox_;
-	}
+		double wsum = 0;
+		double vsum = 0;
 
-	template<template<typename,typename> class CONTAINER>
-	inline OTYPE filter( point_type focus, const CONTAINER<ITYPE,CONFIG> &data_points ) const {
-	    size_t n(0);
-		OTYPE vsum(0);
-		for( size_t i = 0 ; i < data_points.size() ; i++ ) {
-            point_type dx(REAL(0.0));
-            for (size_t j = 0 ; j < CONFIG::D ; j++) {
-                dx[j] = std::fabs(data_points[i].first[j] - focus[j]);
-            }
-
-			bool within = true;
-			for( size_t k = 0 ; within && k < CONFIG::D ; k++ ) {
-				within = within && ( dx[k] < bbox[k] );
-			}
-
-			if ( within ) {
-				vsum += data_points[i].second;
-				n++;
+		for( size_t i = index; i < count; i+=stride ) {
+			auto d = normsq( focus - points[i] );
+			if ( d < r*r ) {
+				double w = nh * std::exp( (double(-0.5)/h) * d );
+				vsum += values[i] * w;
+				wsum += w;
 			}
 		}
-		if (CONFIG::DEBUG) assert( n!=0 );
-		return n ? ( vsum / OTYPE(n) ): OTYPE(0.);
-	}
 
-	inline geometry::any_shape<CONFIG> support( point_type focus, REAL domain_mag ) const {
-	    return geometry::box<CONFIG>( focus - REAL(0.5) * bbox, focus + REAL(0.5) * bbox );
+		//if ( wsum ) return vsum / wsum;
+		//else return REAL(0.);
 	}
-
-protected:
-	point_type bbox;
-};
 
 }
-
-#endif /* MUI_SAMPLER_MOVING_AVG_H_ */
