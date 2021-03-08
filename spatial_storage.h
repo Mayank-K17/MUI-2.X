@@ -117,7 +117,7 @@ public:
 	// we need more large lock if there is no rw-lock.
 	template<typename REGION, typename FOCUS, typename SAMPLER, typename ... ADDITIONAL>
 	typename SAMPLER::OTYPE
-	query(const REGION& reg, const FOCUS& f, SAMPLER& s, point_type* points_cuda, REAL* values_cuda, ADDITIONAL && ... additional) const {
+	query(const REGION& reg, const FOCUS& f, SAMPLER& s, ADDITIONAL && ... additional) const {
 		// Empty data check to avoid sampling errors
 		if( data_.empty() )
 			return s.filter( f, virtual_container<typename SAMPLER::ITYPE,CONFIG>(std::vector<std::pair<point_type,typename SAMPLER::ITYPE> >(),std::vector<bool>()), additional... );
@@ -159,14 +159,14 @@ public:
 
 	template<typename FOCUS, typename SAMPLER, typename ...ADDITIONAL>
 	typename SAMPLER::OTYPE
-	build_and_query_ts(const FOCUS& f, SAMPLER& s, point_type* points_cuda, REAL* values_cuda, ADDITIONAL && ... additional) {
+	build_and_query_ts(const FOCUS& f, SAMPLER& s, ADDITIONAL && ... additional) {
 		// this method is thread-safe. other methods are not.
 		{
 			std::unique_lock<std::mutex> lock(mutex_);
 			if( !is_built() ) build();
 		}
 
-		typename SAMPLER::OTYPE ret_val = query(s.support(f, bin_.domain_size()).bbox(), f, s, points_cuda, values_cuda, additional...);
+		typename SAMPLER::OTYPE ret_val = query(s.support(f, bin_.domain_size()).bbox(), f, s, additional...);
 
 		return ret_val;
 	}
@@ -180,10 +180,9 @@ public:
 	}
 
 	template<typename TYPE>
-        const std::vector<std::pair<point_type,TYPE> >& return_data() {
-                return storage_cast<const std::vector<std::pair<point_type,TYPE> >& >(data_);
-        }
-
+	const std::vector<std::pair<point_type,TYPE> >& return_data() {
+		return storage_cast<const std::vector<std::pair<point_type,TYPE> >& >(data_);
+	}
 
 	bool is_built() const { return is_bin_; }
 	bool empty() const { return data_.empty(); }

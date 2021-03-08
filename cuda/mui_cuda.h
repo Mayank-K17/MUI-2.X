@@ -51,11 +51,8 @@
 
 namespace mui {
 
-template <typename TYPE, typename CONFIG>
+template <typename REAL>
 class mui_cuda {
-public:
-	//using REAL = typename CONFIG::REAL;
-	//using point_type = typename CONFIG::point_type;
 
 public:
 	mui_cuda();

@@ -8,6 +8,11 @@ set(CMAKE_DEPENDS_CHECK_CUDA
   )
 set(CMAKE_CUDA_COMPILER_ID "NVIDIA")
 
+# Preprocessor definitions for this target.
+set(CMAKE_TARGET_DEFINITIONS_CUDA
+  "muiCUDA_EXPORTS"
+  )
+
 # The include file search paths:
 set(CMAKE_CUDA_TARGET_INCLUDE_PATH
   "/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi"

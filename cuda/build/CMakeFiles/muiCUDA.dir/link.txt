@@ -1,2 +1,1 @@
-/usr/bin/ar qc libmuiCUDA.a  CMakeFiles/muiCUDA.dir/mui_cuda.cpp.o
-/usr/bin/ranlib libmuiCUDA.a
+/usr/bin/g++ -fPIC  -shared -Wl,-soname,libmuiCUDA.so -o ../lib/libmuiCUDA.so CMakeFiles/muiCUDA.dir/mui_cuda.cpp.o  -Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so /usr/lib/x86_64-linux-gnu/librt.so -lpthread  -L"/usr/local/cuda/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda/targets/x86_64-linux/lib" -lcudadevrt -lcudart_static -lrt -lpthread -ldl

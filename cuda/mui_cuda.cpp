@@ -46,15 +46,14 @@
 
 #include "mui_cuda.h"
 
-// Constructor
-template <typename TYPE, typename CONFIG>
-mui::mui_cuda::mui_cuda() {}
+template <typename REAL>
+mui::mui_cuda<REAL>::mui_cuda() {}
 
-// Destuctor
-mui::mui_cuda::~mui_cuda() {}
+template <typename REAL>
+mui::mui_cuda<REAL>::~mui_cuda() {}
 
-bool mui::mui_cuda::initCUDA() {
-	/*
+template <typename REAL>
+bool mui::mui_cuda<REAL>::initCUDA() {
 	int deviceCount=0;
 	cudaGetDeviceCount(&deviceCount);
 
@@ -66,15 +65,15 @@ bool mui::mui_cuda::initCUDA() {
 	cudaDriverGetVersion(&driverVersion);
 	cudaRuntimeGetVersion(&runtimeVersion);
 
-	std::cout << "MUI [uniface.h]: CUDA driver/runtime version: " << driverVersion/1000 << "." << (driverVersion%100)/10 << "/"
+	std::cout << "MUI [mui_cuda.cpp]: CUDA driver/runtime version: " << driverVersion/1000 << "." << (driverVersion%100)/10 << "/"
 			  << runtimeVersion/1000 << "." << (runtimeVersion%100)/10 << std::endl;
 
 	if(!deviceCount) {
-		std::cout << "MUI Error [uniface.h]: There are no available CUDA device(s)" << std::endl;
+		std::cout << "MUI Error [mui_cuda.cpp]: There are no available CUDA device(s)" << std::endl;
 		return false;
 	}
 	else {
-		std::cout << "MUI [uniface.h]: Detected CUDA device(s): " << deviceCount << std::endl;
+		std::cout << "MUI [mui_cuda.cpp]: Detected CUDA device(s): " << deviceCount << std::endl;
 
 		for(int dev = 0; dev < deviceCount; dev++) {
 			cudaSetDevice(dev);
@@ -90,12 +89,9 @@ bool mui::mui_cuda::initCUDA() {
 		// Temporary - set first device in index (must be at least 1 but need to improve this for multi-GPU environments)
 		cudaSetDevice(0);
 
-		cudaMalloc(&points_cuda, 200*sizeof(point_type));
-		cudaMalloc(&values_cuda, 200*sizeof(REAL));
-
 		return true;
 	}
-	*/
+
 	return true;
 }
 

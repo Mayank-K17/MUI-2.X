@@ -74,7 +74,7 @@
 namespace py = pybind11;
 #endif
 
-#ifdef MUI_CUDA
+#ifdef USE_CUDA
 #include "cuda/mui_cuda.h"
 #endif
 
@@ -227,20 +227,23 @@ private: // data members
 	time_type memory_length = std::numeric_limits<time_type>::max();
 	std::mutex mutex;
 	bool initialized_pts_;
+	#ifdef USE_CUDA
+	mui_cuda<REAL> cuda_instance_;
+	#endif
 
 public:
 	uniface( const char URI[] ) : uniface( comm_factory::create_comm(URI) ) {
-		#ifdef MUI_CUDA
+		#ifdef USE_CUDA
 		//initCUDA();
 		#endif
 	}
 	uniface( std::string const &URI ) : uniface( comm_factory::create_comm(URI.c_str()) ) {
-		#ifdef MUI_CUDA
+		#ifdef USE_CUDA
 		//initCUDA();
 		#endif
 	}
 	uniface( communicator* comm_ ) : comm(comm_), initialized_pts_(false) {
-		#ifdef MUI_CUDA
+		#ifdef USE_CUDA
 		//initCUDA();
 		#endif
 
