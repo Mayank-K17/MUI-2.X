@@ -287,14 +287,48 @@ sparse_matrix<ITYPE,VTYPE> sparse_matrix<ITYPE,VTYPE>::segment(ITYPE r_start, IT
     return res;
 }
 
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::set_add_value(ITYPE r, ITYPE c, VTYPE val)
+{
+    if(matrix_format_ == format::COO) 
+    {
+        
+        this->coo_element_add_operation(r, c, val);
+
+    } 
+    else if (matrix_format_ == format::CSR) 
+    {
+
+        this->csr_element_add_operation(r, c, val);
+
+    } 
+    else if (matrix_format_ == format::CSC) 
+    {
+
+        this->csc_element_add_operation(r, c, val);
+
+    } 
+    else 
+    {
+          std::cerr << "MUI Error [matrix_manipulation.h]: Unrecognised matrix format" << std::endl;
+          std::cerr << "    Please set the matrix_format_ as:" << std::endl;
+          std::cerr << "    format::COO: COOrdinate format" << std::endl;
+          std::cerr << "    format::CSR (default): Compressed Sparse Row format" << std::endl;
+          std::cerr << "    format::CSC: Compressed Sparse Column format" << std::endl;
+          std::abort();
+    }
+}
+
 // Member function to insert an element
 template<typename ITYPE, typename VTYPE>
 void sparse_matrix<ITYPE,VTYPE>::set_value(ITYPE r, ITYPE c, VTYPE val, bool performSortAndUniqueCheck) {
     assert(((r < rows_) && (r >= 0) && (c < cols_) && (c >= 0)) &&
         "MUI Error [matrix_manipulation.h]: Matrix index out of range in set_value function");
 
-    if (performSortAndUniqueCheck) {
-        if (!(this->is_sorted_unique("matrix_manipulation.h", "set_value()"))){
+    if (performSortAndUniqueCheck) 
+    {
+        if (!(this->is_sorted_unique("matrix_manipulation.h", "set_value()")))
+        {
             if(matrix_format_ == format::COO) {
                 this->sort_coo(true, true, "overwrite");
             } else if (matrix_format_ == format::CSR) {
@@ -312,23 +346,24 @@ void sparse_matrix<ITYPE,VTYPE>::set_value(ITYPE r, ITYPE c, VTYPE val, bool per
         }
     }
 
-    if(matrix_format_ == format::COO) {
-
+    if(matrix_format_ == format::COO) 
+    {
         if (performSortAndUniqueCheck) {
             this->coo_element_operation(r, c, val, "overwrite", "matrix_manipulation.h", "set_value()");
         } else {
             this->coo_element_operation(r, c, val, "nonsort", "matrix_manipulation.h", "set_value()");
         }
-
-    } else if (matrix_format_ == format::CSR) {
-
+    } 
+    else if (matrix_format_ == format::CSR) 
+    {
         this->csr_element_operation(r, c, val, "overwrite", "matrix_manipulation.h", "set_value()");
-
-    } else if (matrix_format_ == format::CSC) {
-
+    } 
+    else if (matrix_format_ == format::CSC) 
+    {
         this->csc_element_operation(r, c, val, "overwrite", "matrix_manipulation.h", "set_value()");
-
-    } else {
+    } 
+    else 
+    {
           std::cerr << "MUI Error [matrix_manipulation.h]: Unrecognised matrix format" << std::endl;
           std::cerr << "    Please set the matrix_format_ as:" << std::endl;
           std::cerr << "    format::COO: COOrdinate format" << std::endl;
@@ -338,6 +373,34 @@ void sparse_matrix<ITYPE,VTYPE>::set_value(ITYPE r, ITYPE c, VTYPE val, bool per
     }
 }
 
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::initialize_memory(ITYPE rows, ITYPE column)
+{
+    this->set_zero();
+    if(matrix_format_ == format::COO) 
+    {
+        // Resize the vectors to hold all possible elements
+        matrix_coo.values_.reserve(rows_*cols_);
+        matrix_coo.row_indices_.reserve(rows_*cols_);
+        matrix_coo.col_indices_.reserve(rows_*cols_);
+    }
+    else if (matrix_format_ == format::CSR) 
+    {
+        // Resize the vectors to hold all possible elements
+        matrix_csr.values_.reserve(rows_*cols_);
+        matrix_csr.row_ptrs_.reserve(rows_+1);
+        matrix_csr.col_indices_.reserve(rows_*cols_);
+    }
+    else if (matrix_format_ == format::CSC) 
+    {
+        // Resize the vectors to hold all possible elements
+        matrix_csc.values_.reserve(rows_*cols_);
+        matrix_csc.row_indices_.reserve(rows_*cols_);
+        matrix_csc.col_ptrs_.reserve(cols_+1);
+    }
+    
+}
+
 // Member function to insert the same value to all elements
 template<typename ITYPE, typename VTYPE>
 void sparse_matrix<ITYPE,VTYPE>::set_value(VTYPE val) {
@@ -345,6 +408,7 @@ void sparse_matrix<ITYPE,VTYPE>::set_value(VTYPE val) {
     this->set_zero();
 
     if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) {
+
 
         if(matrix_format_ == format::COO) {
             // Resize the vectors to hold all possible elements
@@ -362,6 +426,8 @@ void sparse_matrix<ITYPE,VTYPE>::set_value(VTYPE val) {
             }
         } else if (matrix_format_ == format::CSR) {
             // Resize the vectors to hold all possible elements
+
+            
             matrix_csr.values_.reserve(rows_*cols_);
             matrix_csr.row_ptrs_.reserve(rows_+1);
             matrix_csr.col_indices_.reserve(rows_*cols_);
@@ -467,19 +533,26 @@ void sparse_matrix<ITYPE,VTYPE>::add_scalar(ITYPE r, ITYPE c, VTYPE val, bool pe
         }
     }
 
-    if(matrix_format_ == format::COO) {
+    if(matrix_format_ == format::COO) 
+    {
 
         this->coo_element_operation(r, c, val, "plus", "matrix_manipulation.h", "add_scalar()");
 
-    } else if (matrix_format_ == format::CSR) {
+    } 
+    else if (matrix_format_ == format::CSR) 
+    {
 
         this->csr_element_operation(r, c, val, "plus", "matrix_manipulation.h", "add_scalar()");
 
-    } else if (matrix_format_ == format::CSC) {
+    } 
+    else if (matrix_format_ == format::CSC) 
+    {
 
         this->csc_element_operation(r, c, val, "plus", "matrix_manipulation.h", "add_scalar()");
 
-    } else {
+    } 
+    else 
+    {
           std::cerr << "MUI Error [matrix_manipulation.h]: Unrecognised matrix format" << std::endl;
           std::cerr << "    Please set the matrix_format_ as:" << std::endl;
           std::cerr << "    format::COO: COOrdinate format" << std::endl;
@@ -494,15 +567,24 @@ template<typename ITYPE, typename VTYPE>
 void sparse_matrix<ITYPE,VTYPE>::subtract_scalar(ITYPE r, ITYPE c, VTYPE val, bool performSortAndUniqueCheck) {
     assert(((r < rows_) && (r >= 0) && (c < cols_) && (c >= 0)) &&
         "MUI Error [matrix_manipulation.h]: Matrix index out of range in subtract_scalar function");
-    if (performSortAndUniqueCheck) {
-        if (!(this->is_sorted_unique("matrix_manipulation.h", "subtract_scalar()"))){
-            if(matrix_format_ == format::COO) {
+    if (performSortAndUniqueCheck) 
+    {
+        if (!(this->is_sorted_unique("matrix_manipulation.h", "subtract_scalar()")))
+        {
+            if(matrix_format_ == format::COO) 
+            {
                 this->sort_coo(true, true, "overwrite");
-            } else if (matrix_format_ == format::CSR) {
+            } 
+            else if (matrix_format_ == format::CSR) 
+            {
                 this->sort_csr(true, "overwrite");
-            } else if (matrix_format_ == format::CSC) {
+            } 
+            else if (matrix_format_ == format::CSC) 
+            {
                 this->sort_csc(true, "overwrite");
-            } else {
+            } 
+            else 
+            {
                   std::cerr << "MUI Error [matrix_manipulation.h]: Unrecognised matrix format" << std::endl;
                   std::cerr << "    Please set the matrix_format_ as:" << std::endl;
                   std::cerr << "    format::COO: COOrdinate format" << std::endl;
@@ -585,12 +667,14 @@ void sparse_matrix<ITYPE,VTYPE>::multiply_scalar(ITYPE r, ITYPE c, VTYPE val, bo
 // Overloaded assignment operator
 template <typename ITYPE, typename VTYPE>
 sparse_matrix<ITYPE,VTYPE>& sparse_matrix<ITYPE,VTYPE>::operator=(const sparse_matrix<ITYPE,VTYPE> &exist_mat) {
-    if (this != &exist_mat) { // check for self-assignment
+    if (this != &exist_mat) 
+    { // check for self-assignment
         // copy the values from the other matrix to this matrix
         assert(this->empty() &&
                   "MUI Error [matrix_manipulation.h]: assignment operator '=' only works for empty (all zero elements) matrix");
 
-        if((rows_ == 0) && (cols_ == 0)){
+        if((rows_ == 0) && (cols_ == 0))
+        {
             rows_ = exist_mat.rows_;
             cols_ = exist_mat.cols_;
         }
@@ -599,24 +683,32 @@ sparse_matrix<ITYPE,VTYPE>& sparse_matrix<ITYPE,VTYPE>::operator=(const sparse_m
                   "MUI Error [matrix_manipulation.h]: matrix size mismatch in assignment operator '='");
 
         std::string format_store = this->get_format();
-        if (this->get_format() != exist_mat.get_format()) {
+        if (this->get_format() != exist_mat.get_format()) 
+        {
             this->format_conversion(exist_mat.get_format(), true, true, "overwrite");
         }
 
         // Copy the data from the existing matrix
-        if (matrix_format_ == format::COO) {
+        if (matrix_format_ == format::COO) 
+        {
             matrix_coo.values_ = std::vector<VTYPE>(exist_mat.matrix_coo.values_.begin(), exist_mat.matrix_coo.values_.end());
             matrix_coo.row_indices_ = std::vector<ITYPE>(exist_mat.matrix_coo.row_indices_.begin(), exist_mat.matrix_coo.row_indices_.end());
             matrix_coo.col_indices_ = std::vector<ITYPE>(exist_mat.matrix_coo.col_indices_.begin(), exist_mat.matrix_coo.col_indices_.end());
-        } else if (matrix_format_ == format::CSR) {
+        } 
+        else if (matrix_format_ == format::CSR) 
+        {
             matrix_csr.values_ = std::vector<VTYPE>(exist_mat.matrix_csr.values_.begin(), exist_mat.matrix_csr.values_.end());
             matrix_csr.row_ptrs_ = std::vector<ITYPE>(exist_mat.matrix_csr.row_ptrs_.begin(), exist_mat.matrix_csr.row_ptrs_.end());
             matrix_csr.col_indices_ = std::vector<ITYPE>(exist_mat.matrix_csr.col_indices_.begin(), exist_mat.matrix_csr.col_indices_.end());
-        } else if (matrix_format_ == format::CSC) {
+        } 
+        else if (matrix_format_ == format::CSC) 
+        {
             matrix_csc.values_ = std::vector<VTYPE>(exist_mat.matrix_csc.values_.begin(), exist_mat.matrix_csc.values_.end());
             matrix_csc.row_indices_ = std::vector<ITYPE>(exist_mat.matrix_csc.row_indices_.begin(), exist_mat.matrix_csc.row_indices_.end());
             matrix_csc.col_ptrs_ = std::vector<ITYPE>(exist_mat.matrix_csc.col_ptrs_.begin(), exist_mat.matrix_csc.col_ptrs_.end());
-        } else {
+        }
+        else 
+        {
             std::cerr << "MUI Error [matrix_ctor_dtor.h]: Unrecognised matrix format for matrix constructor" << std::endl;
             std::cerr << "    Please set the matrix_format_ as:" << std::endl;
             std::cerr << "    format::COO: COOrdinate format" << std::endl;
@@ -854,8 +946,10 @@ void sparse_matrix<ITYPE,VTYPE>::sort_coo(bool is_row_major, bool deduplication,
     sorted_row_indices.reserve(sorted_indices.size());
     sorted_column_indices.reserve(sorted_indices.size());
 
-    for (ITYPE i = 0; i < static_cast<ITYPE>(sorted_indices.size()); ++i) {
-        if (std::abs(matrix_coo.values_[sorted_indices[i]]) >= std::numeric_limits<VTYPE>::min()) {
+    for (ITYPE i = 0; i < static_cast<ITYPE>(sorted_indices.size()); ++i) 
+    {
+        if (std::abs(matrix_coo.values_[sorted_indices[i]]) >= std::numeric_limits<VTYPE>::min()) 
+        {
             sorted_values.emplace_back(matrix_coo.values_[sorted_indices[i]]);
             sorted_row_indices.emplace_back(matrix_coo.row_indices_[sorted_indices[i]]);
             sorted_column_indices.emplace_back(matrix_coo.col_indices_[sorted_indices[i]]);
@@ -1293,6 +1387,152 @@ void sparse_matrix<ITYPE,VTYPE>::sort_csc(bool deduplication, const std::string 
     sorted_values.clear();
 
 }
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::define_ptrs(ITYPE r, ITYPE c)
+{
+    if (matrix_format_ == format::CSR)
+    {
+        matrix_csr.row_ptrs_[0] = 0;
+        for (int i=1;i<=r;i++)
+        {
+            matrix_csr.row_ptrs_[i] = matrix_csr.row_ptrs_[i] + matrix_csr.row_ptrs_[i-1];
+        }
+    }
+    else if(matrix_format_ == format::CSC)
+    {
+        matrix_csc.col_ptrs_[0] = 0;
+        for (int i=1;i<=r;i++)
+        {
+            matrix_csc.col_ptrs_[i] = matrix_csc.col_ptrs_[i] + matrix_csc.col_ptrs_[i-1];
+        }
+    }
+
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::set_ptr_value(ITYPE r, ITYPE c, VTYPE value)
+{
+    if (matrix_format_ == format::CSR)
+    {
+        this->csr_ptr_calc_operation(r,c,value);
+    }
+    else if(matrix_format_ == format::CSC)
+    {
+        this->csc_ptr_calc_operation(r,c,value);
+    }
+
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::coo_element_add_operation(ITYPE r, ITYPE c, VTYPE val)
+{
+    
+           
+            matrix_coo.values_.emplace_back(val);
+            matrix_coo.row_indices_.emplace_back(r);
+            matrix_coo.col_indices_.emplace_back(c);
+            nnz_++;
+}
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::csr_element_add_operation(ITYPE r, ITYPE c, VTYPE val)
+{
+    
+    ITYPE start = matrix_csr.row_ptrs_[r];
+    ITYPE end = matrix_csr.row_ptrs_[r + 1];
+    auto it = std::lower_bound(matrix_csr.col_indices_.begin()+start, matrix_csr.col_indices_.begin()+end, c);
+    // Check if the column index already exists in the row
+    if (it != matrix_csr.col_indices_.begin()+end && *it == c) 
+    {
+        // Get the index of the found column index
+        ITYPE insert_position = std::distance(matrix_csr.col_indices_.begin(), it);
+        
+        if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) 
+        {
+                // Update the existing value with the new value
+                matrix_csr.values_[insert_position] = val;
+        } 
+        else 
+        {
+                // Erase the existing entry from the vectors
+                matrix_csr.col_indices_.erase(matrix_csr.col_indices_.begin()+insert_position);
+                matrix_csr.values_.erase(matrix_csr.values_.begin()+insert_position);
+
+                // Adjust the row pointers after the erased element
+                for (ITYPE i = r + 1; i < static_cast<ITYPE>(matrix_csr.row_ptrs_.size()); ++i) {
+                    matrix_csr.row_ptrs_[i]--;
+                }
+                nnz_--;
+        }
+    }
+    else 
+    {
+            // Check if the new value is zero
+        if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) 
+        {
+            // Insert the new value and column index at the determined position
+            ITYPE insert_position = std::distance(matrix_csr.col_indices_.begin(), it);
+            
+            matrix_csr.col_indices_.insert(matrix_csr.col_indices_.begin()+insert_position, c);
+            //std::cout<< "Inside else multiply in if statement : "<<std::endl;
+            
+            matrix_csr.values_.insert(matrix_csr.values_.begin()+insert_position, val);
+            
+                // Adjust the row pointers after the inserted element
+            for (ITYPE i = r + 1; i < static_cast<ITYPE>(matrix_csr.row_ptrs_.size()); ++i) 
+            {
+                matrix_csr.row_ptrs_[i]++;
+            }
+            nnz_++;
+        } 
+        else 
+        {
+            // No existing entry to update, do nothing
+        }
+    }
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::csc_element_add_operation(ITYPE r, ITYPE c, VTYPE val)
+{
+    ITYPE start = matrix_csc.col_ptrs_[c];
+    ITYPE end = matrix_csc.col_ptrs_[c + 1];
+
+    // Find the position of the row index within the range
+    auto it = std::lower_bound(matrix_csc.row_indices_.begin()+start, matrix_csc.row_indices_.begin()+end, r);
+
+    // Check if the row index already exists
+    if (it != matrix_csc.row_indices_.begin()+end && *it == r) {
+        // Get the index of the found column index
+        ITYPE insert_position = std::distance(matrix_csc.row_indices_.begin(), it);
+        if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) 
+            {
+                // Update the existing value with the new value
+                matrix_csc.values_[insert_position] = val;
+                matrix_csc.row_indices_[insert_position] = r;
+            } 
+
+    } 
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::csr_ptr_calc_operation(ITYPE r, ITYPE c, VTYPE val)
+{   
+    if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) 
+    {
+        // Update the existing value with the new value
+        matrix_csr.row_ptrs_[r + 1]++;
+    } 
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::csc_ptr_calc_operation(ITYPE r, ITYPE c, VTYPE val)
+{   
+    if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) 
+    {
+        // Update the existing value with the new value
+        matrix_csc.col_ptrs_[c + 1]++;
+    } 
+}
 
 // Protected member function for element operation of COO matrix
 template<typename ITYPE, typename VTYPE>
@@ -1476,7 +1716,7 @@ void sparse_matrix<ITYPE,VTYPE>::csr_element_operation(ITYPE r, ITYPE c, VTYPE v
         std::cerr << "    'overwrite' (default): Keeps only the last elemental value" << std::endl;
         std::abort();
     }
-
+    
     // Find the range of indices for the given row
     ITYPE start = matrix_csr.row_ptrs_[r];
     ITYPE end = matrix_csr.row_ptrs_[r + 1];
@@ -1488,12 +1728,16 @@ void sparse_matrix<ITYPE,VTYPE>::csr_element_operation(ITYPE r, ITYPE c, VTYPE v
     if (it != matrix_csr.col_indices_.begin()+end && *it == c) {
         // Get the index of the found column index
         ITYPE insert_position = std::distance(matrix_csr.col_indices_.begin(), it);
-        if (operation_mode_trim == "plus") {
+        if (operation_mode_trim == "plus") 
+        {
             // Check if the sum value is zero
-            if (std::abs(matrix_csr.values_[insert_position] + val) >= std::numeric_limits<VTYPE>::min()) {
+            if (std::abs(matrix_csr.values_[insert_position] + val) >= std::numeric_limits<VTYPE>::min()) 
+            {
                 // Update the existing value with the new value
                 matrix_csr.values_[insert_position] += val;
-            } else {
+            } 
+            else 
+            {
                 // Erase the existing entry from the vectors
                 matrix_csr.col_indices_.erase(matrix_csr.col_indices_.begin()+insert_position);
                 matrix_csr.values_.erase(matrix_csr.values_.begin()+insert_position);
@@ -1504,9 +1748,13 @@ void sparse_matrix<ITYPE,VTYPE>::csr_element_operation(ITYPE r, ITYPE c, VTYPE v
                 }
                 nnz_--;
             }
-        } else if (operation_mode_trim == "minus") {
+        } 
+        else if (operation_mode_trim == "minus") 
+        {
             // Check if the difference value is zero
-            if (std::abs(matrix_csr.values_[insert_position] - val) >= std::numeric_limits<VTYPE>::min()) {
+            if (std::abs(matrix_csr.values_[insert_position] - val) >= std::numeric_limits<VTYPE>::min()) 
+            {
+
                 // Update the existing value with the new value
                 matrix_csr.values_[insert_position] -= val;
             } else {
@@ -1520,10 +1768,13 @@ void sparse_matrix<ITYPE,VTYPE>::csr_element_operation(ITYPE r, ITYPE c, VTYPE v
                 }
                 nnz_--;
             }
-        } else if (operation_mode_trim == "multiply") {
+        } 
+        else if (operation_mode_trim == "multiply") 
+        {
             // Check if the product value is zero
             if (std::abs(matrix_csr.values_[insert_position] * val) >= std::numeric_limits<VTYPE>::min()) {
                 // Update the existing value with the new value
+               
                 matrix_csr.values_[insert_position] *= val;
             } else {
                 // Erase the existing entry from the vectors
@@ -1536,16 +1787,23 @@ void sparse_matrix<ITYPE,VTYPE>::csr_element_operation(ITYPE r, ITYPE c, VTYPE v
                 }
                 nnz_--;
             }
-        } else { // overwrite
+        } 
+        else 
+        { // overwrite
             // Check if the new value is zero
-            if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) {
+            
+            if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) 
+            {
                 // Update the existing value with the new value
                 matrix_csr.values_[insert_position] = val;
-            } else {
+                
+            } 
+            else 
+            {
                 // Erase the existing entry from the vectors
                 matrix_csr.col_indices_.erase(matrix_csr.col_indices_.begin()+insert_position);
                 matrix_csr.values_.erase(matrix_csr.values_.begin()+insert_position);
-
+               
                 // Adjust the row pointers after the erased element
                 for (ITYPE i = r + 1; i < static_cast<ITYPE>(matrix_csr.row_ptrs_.size()); ++i) {
                     matrix_csr.row_ptrs_[i]--;
@@ -1553,27 +1811,37 @@ void sparse_matrix<ITYPE,VTYPE>::csr_element_operation(ITYPE r, ITYPE c, VTYPE v
                 nnz_--;
             }
         }
-    } else {
-        if (operation_mode_trim != "multiply") {
+    } 
+    else 
+    {
+        if (operation_mode_trim != "multiply") 
+        {
             // Check if the new value is zero
-            if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) {
+            if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) 
+            {
                 // Insert the new value and column index at the determined position
                 ITYPE insert_position = std::distance(matrix_csr.col_indices_.begin(), it);
                 matrix_csr.col_indices_.reserve(matrix_csr.col_indices_.size()+1);
                 matrix_csr.values_.reserve(matrix_csr.values_.size()+1);
                 matrix_csr.col_indices_.insert(matrix_csr.col_indices_.begin()+insert_position, c);
-                if (operation_mode_trim == "minus") {
+               
+                if (operation_mode_trim == "minus") 
+                {
                     matrix_csr.values_.insert(matrix_csr.values_.begin()+insert_position, -val);
-                } else {
+                } 
+                else 
+                {
                     matrix_csr.values_.insert(matrix_csr.values_.begin()+insert_position, val);
                 }
-
                 // Adjust the row pointers after the inserted element
-                for (ITYPE i = r + 1; i < static_cast<ITYPE>(matrix_csr.row_ptrs_.size()); ++i) {
+                for (ITYPE i = r + 1; i < static_cast<ITYPE>(matrix_csr.row_ptrs_.size()); ++i) 
+                {
                     matrix_csr.row_ptrs_[i]++;
                 }
                 nnz_++;
-            } else {
+            } 
+            else 
+            {
                 // No existing entry to update, do nothing
             }
         }
@@ -1671,7 +1939,9 @@ void sparse_matrix<ITYPE,VTYPE>::csc_element_operation(ITYPE r, ITYPE c, VTYPE v
                 }
                 nnz_--;
             }
-        } else { // overwrite
+        } 
+        else 
+        { // overwrite
             // Check if the new value is zero
             if (std::abs(val) >= std::numeric_limits<VTYPE>::min()) {
                 // Update the existing value with the new value
