@@ -52,6 +52,7 @@
 #include <vector>
 #include <cassert>
 #include "linalg_util.h"
+#include <CL/sycl.hpp>
 
 namespace mui {
 namespace linalg {
@@ -87,6 +88,7 @@ class sparse_matrix {
         void print() const;
         // Member function to print matrix vectors to the console
         void print_vectors() const;
+        void print_sycl_vectors(ITYPE size_r) const ;
         // Member function to write matrix vectors to the file
         void write_vectors_to_file(const std::string &, const std::string & = {}, const std::string & = {}, const std::string & = {}) const;
         // Member function to read matrix vectors from the file
@@ -114,11 +116,33 @@ class sparse_matrix {
 
         // Member function to resize an all-zero or null matrix
         void resize(ITYPE, ITYPE);
+        // Member function to resize the sycl matrix an all-zero or null matrix
+        void sycl_resize(ITYPE, ITYPE);
+        // Member function to resize the sycl matrix an all-zero or null matrix
+        void sycl_assign_memory(ITYPE);
+        void sycl_assign_memory(ITYPE,ITYPE);
+        /// @brief 
+        /// @param  
+        void sycl_assign_vec_memory(ITYPE);
+        // Member function to resize the sycl matrix to all-zero 
+        void sycl_assign_zero(sycl::queue, ITYPE*, size_t);
+        
+        void sycl_assign_zero(sycl::queue, VTYPE*, size_t);
         // Member function to copy a sparse_matrix
         void copy(const sparse_matrix<ITYPE,VTYPE> &);
         // Member function to get a segment of a sparse_matrix
+        void sycl_1d_mat_copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
+        void sycl_1d_vec_copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
+        void sycl_copy_val_vector(sycl::queue );
+        void sycl_copy_val_vector(sycl::queue , const sparse_matrix<ITYPE, VTYPE> &);
+
         sparse_matrix<ITYPE,VTYPE> segment(ITYPE, ITYPE, ITYPE, ITYPE, bool = true);
         
+         void sycl_segment_row(sycl::queue , const sparse_matrix<ITYPE,VTYPE> &, ITYPE);
+        void segment_matrix_sycl(sycl::queue , VTYPE*, VTYPE*, ITYPE*,ITYPE*,ITYPE,size_t);
+        void sycl_populate_diag(sycl::queue );
+        void sycl_populate_diag_vec(sycl::queue , VTYPE *, VTYPE *, ITYPE *, ITYPE *, size_t);
+
         void initialize_memory(ITYPE, ITYPE);
         
         void set_ptr_value(ITYPE, ITYPE, VTYPE);
@@ -134,12 +158,32 @@ class sparse_matrix {
         void set_value(ITYPE, ITYPE, VTYPE, bool = true);
         // Member function to insert the same value to all elements
         void set_value(VTYPE);
+
+        void set_axpby(sycl::queue, sparse_matrix<ITYPE,VTYPE> &, VTYPE , VTYPE , ITYPE );
+        
+        void sycl_set_y_axpby(sycl::queue, VTYPE *, VTYPE *, VTYPE , VTYPE , size_t ); 
+        
+
         // Member function to swap two elements in a sparse matrix
         void swap_elements(ITYPE, ITYPE, ITYPE, ITYPE);
+        void copy_sycl_data(sycl::queue, VTYPE *, VTYPE *, size_t) const;
+        void copy_sycl_data(sycl::queue,ITYPE *, ITYPE *, size_t) const;
         // Member function to set all elements to zero and empty the sparse matrix
         void set_zero();
+        void sycl_set_zero();
+
+        void sycl_remove_element(sycl::queue, VTYPE *, ITYPE *, ITYPE, size_t);
+
+        void sycl_add_element(sycl::queue,VTYPE *, VTYPE *, VTYPE, ITYPE *,ITYPE *, ITYPE , ITYPE, size_t);
+
         // Member function to add scalar to a specific elements
         void add_scalar(ITYPE, ITYPE, VTYPE, bool = true);
+        void sycl_add_scalar(sycl::queue,const sparse_matrix<ITYPE,VTYPE> &, VTYPE);
+        void sycl_subtract_scalar(sycl::queue,const sparse_matrix<ITYPE,VTYPE> &, VTYPE);
+        // Member function to subtract a scalar from a specific elements
+        void sycl_add_vec_kernel(sycl::queue, VTYPE*, VTYPE*, VTYPE, size_t);
+
+
         // Member function to subtract a scalar from a specific elements
         void subtract_scalar(ITYPE, ITYPE, VTYPE, bool = true);
         // Member function to multiply a scalar from a specific elements
@@ -164,8 +208,16 @@ class sparse_matrix {
         // Overload multiplication operator to perform scalar multiplication
         template <typename STYPE>
         sparse_matrix<ITYPE,VTYPE> operator*(const STYPE &) const;
+        void sycl_multiply(sycl::queue , sparse_matrix<ITYPE,VTYPE> &, sparse_matrix<ITYPE,VTYPE> &);
+        void sycl_multiply_vector(sycl::queue , const sparse_matrix<ITYPE,VTYPE> &, sparse_matrix<ITYPE,VTYPE> &);
+        void sycl_multiply_mat_vec(sycl::queue , VTYPE *, VTYPE *, VTYPE *, VTYPE *, ITYPE *, ITYPE *, ITYPE *, ITYPE *,  ITYPE );
+        void sycl_multiply_vec_vec(sycl::queue , VTYPE *, VTYPE *, VTYPE *,  ITYPE );  
+        sparse_matrix<ITYPE,VTYPE> operator^(sparse_matrix<ITYPE,VTYPE> &);
         // Member function of dot product
         VTYPE dot_product(sparse_matrix<ITYPE,VTYPE> &) const;
+        VTYPE sycl_dot_product(sycl::queue, sparse_matrix<ITYPE,VTYPE> &);
+        VTYPE sycl_dotp_vec_vec(sycl::queue , VTYPE *, VTYPE *,  ITYPE ); 
+        VTYPE sycl_dotp_red_vec_vec(sycl::queue , VTYPE *, VTYPE *,  ITYPE );
         // Member function of Hadamard product
         sparse_matrix<ITYPE,VTYPE> hadamard_product(sparse_matrix<ITYPE,VTYPE> &);
         // Member function to get transpose of matrix
@@ -299,6 +351,17 @@ class sparse_matrix {
             std::vector<ITYPE> col_ptrs_;
         };
 
+        struct m_sycl_matrix
+        {
+            // Values of non-zero elements of sparse matrix
+            mutable VTYPE *values = nullptr;
+            // Row pointers of each element in the values_ vector
+            mutable ITYPE *row = nullptr;;
+            // Column index of each element in the values_ vector
+            mutable ITYPE *column = nullptr;
+            // Values of non-zero elements of sparse matrix
+            mutable VTYPE *vector_val = nullptr;
+        };
         // *****************************************
         // ******* Sparse matrix attributes ********
         // *****************************************
