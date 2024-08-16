@@ -56,6 +56,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <mpi.h>
+#include <sycl/sycl.hpp>
 
 namespace mui {
 
@@ -184,13 +185,14 @@ public:
     template<template<typename, typename > class CONTAINER>
     inline OTYPE filter(point_type focus, const CONTAINER<ITYPE, CONFIG> &data_points) const {
       OTYPE sum = 0;
-
+      
+       
       // RBF matrix not yet created
       if (!initialised_) {
           if (generateMatrix_) { // Generating the matrix
               const clock_t begin_time = clock();
               facilitateGhostPoints();
-              
+               
               REAL error = computeRBFtransformationMatrix(data_points, writeFileAddress_);
               
               if (!QUIET) {
@@ -882,7 +884,17 @@ private:
          auto matrix_time = 0.;
       auto connectivity_time = 0.;
       auto smoothing_matrix_time = 0.;
+     
+        std::vector<sycl::device> Devs;
+        for (const auto &plt : sycl::platform::get_platforms()) 
+        {
+            if (plt.get_backend() == sycl::backend::ext_oneapi_cuda)
+            {
+                Devs.push_back(plt.get_devices()[0]);
 
+            }
+        }
+        sycl::queue q{Devs[local_rank_]};
         std::pair<point_type, point_type> lbb = localBoundingBox(ptsExtend_);
         for (int i=0;i<data_points.size();i++) 
         {     
@@ -1113,7 +1125,7 @@ private:
         if (conservative_) 
         { 
             // Build matrix for conservative RBF
-            errorReturn = buildMatrixConservative(data_points, N_sp_, M_ap_, smoothFunc_, pouEnabled_, fileAddress);
+            errorReturn = buildMatrixConservative(q,data_points, N_sp_, M_ap_, smoothFunc_, pouEnabled_, fileAddress);
 
        //     std::cout << "MUI [sampler_rbf.h]:build Connectivity matrix conservative after smooth "
          //                    << static_cast<double>(clock() - begin_time) / CLOCKS_PER_SEC << "s ";
@@ -1121,7 +1133,7 @@ private:
         else 
         {
             // Build matrix for consistent RBF
-            errorReturn = buildMatrixConsistent(data_points, N_sp_, M_ap_, smoothFunc_, pouEnabled_);
+            errorReturn = buildMatrixConsistent(q,data_points, N_sp_, M_ap_, smoothFunc_, pouEnabled_);
 
         //    std::cout << "MUI [sampler_rbf.h]:build Connectivity matrix consistent after smooth"
          //                    << static_cast<double>(clock() - begin_time) / CLOCKS_PER_SEC << "s ";
@@ -1168,7 +1180,7 @@ private:
     }
 
     template<template<typename, typename > class CONTAINER>
-    inline REAL buildMatrixConsistent(const CONTAINER<ITYPE, CONFIG> &data_points, const size_t NP,
+    inline REAL buildMatrixConsistent(sycl::queue q, const CONTAINER<ITYPE, CONFIG> &data_points, const size_t NP,
                 const size_t MP, bool smoothing, bool pou) const {
         REAL errorReturn = 0;
         std::pair<INT, REAL> iterErrorReturn(0, 0);
@@ -1177,13 +1189,14 @@ private:
             for (size_t row = 0; row < ptsExtend_.size(); row++) {
                 linalg::sparse_matrix<INT, REAL> Css; //< Matrix of radial basis function evaluations between prescribed points
                 linalg::sparse_matrix<INT, REAL> Aas; //< Matrix of RBF evaluations between prescribed and interpolation points
-
+                linalg::sparse_matrix<INT, REAL> d_Css(q); //< Matrix of radial basis function evaluations between prescribed points
+                linalg::sparse_matrix<INT, REAL> d_Aas(q); //< Matrix of RBF evaluations between prescribed and interpolation points
                 Css.resize((1 + NP + CONFIG::D), (1 + NP + CONFIG::D));
                 Aas.resize((1 + NP + CONFIG::D), 1);
 
                 // Set matrix Css
                 // Define intermediate matrix for performance purpose
-                linalg::sparse_matrix<INT, REAL> Css_coo((1 + NP + CONFIG::D),(1 + NP + CONFIG::D),"COO");
+                linalg::sparse_matrix<INT, REAL> Css_coo(q,(1 + NP + CONFIG::D),(1 + NP + CONFIG::D),"COO");
 
                 for (size_t i = 0; i < NP; i++) {
                     for (size_t j = i; j < NP; j++) {
@@ -1335,7 +1348,8 @@ private:
         else { // Not using PoU
             linalg::sparse_matrix<INT,REAL> Css; //< Matrix of radial basis function evaluations between prescribed points
             linalg::sparse_matrix<INT,REAL> Aas; //< Matrix of RBF evaluations between prescribed and interpolation points
-
+            linalg::sparse_matrix<INT, REAL> d_Css(q); //< Matrix of radial basis function evaluations between prescribed points
+            linalg::sparse_matrix<INT, REAL> d_Aas(q); //< Matrix of RBF evaluations between prescribed and interpolation points
             Css.resize((1 + data_points.size() + CONFIG::D), (1 + data_points.size() + CONFIG::D));
             Aas.resize(ptsExtend_.size(), (1 + data_points.size() + CONFIG::D));
 
@@ -1464,28 +1478,10 @@ private:
 
     template<template<typename, typename > class CONTAINER>
     inline REAL buildMatrixConservative(
-            const CONTAINER<ITYPE, CONFIG> &data_points, const size_t NP,
+            sycl::queue q, const CONTAINER<ITYPE, CONFIG> &data_points, const size_t NP,
             const size_t MP, bool smoothing, bool pou, const std::string &fileAddress) const {
         REAL errorReturn = 0;
         clock_t begin_time;
-        /*
-        std::ofstream outputCSSMatrix(fileAddress + "/Css_val.dat");
-        std::ofstream outputCSSMatrixRow(fileAddress + "/Css_row.dat");
-        std::ofstream outputCSSMatrixCol(fileAddress + "/Css_col.dat");
-        std::ofstream outputAASMatrix(fileAddress + "/Aas.dat");
-        std::ofstream outputAASMatrixRow(fileAddress + "/Aas_row.dat");
-        std::ofstream outputAASMatrixCol(fileAddress + "/Aas_col.dat");
-        */
-        /*
-        auto solver_time = 0.;
-        auto smoothing_time = 0.;
-        auto smooth_mat_time = 0.;
-        auto intermediate_matrix_time = 0.;
-        auto intermediate_matrix_performance = 0.;
-   
-        auto t1 = std::chrono::high_resolution_clock::now();
-        auto t2 = std::chrono::high_resolution_clock::now();
-        */
 
         std::pair<INT, REAL> iterErrorReturn(0, 0);
         int sN = NP;
@@ -1501,13 +1497,15 @@ private:
             {
                 linalg::sparse_matrix<INT, REAL> Css; //< Matrix of radial basis function evaluations between prescribed points
                 linalg::sparse_matrix<INT, REAL> Aas; //< Matrix of RBF evaluations between prescribed and interpolation points
-                
+                linalg::sparse_matrix<INT, REAL> d_Css(q); //< Matrix of radial basis function evaluations between prescribed points on the SYCL Qsueue
+                linalg::sparse_matrix<INT, REAL> d_Aas(q); //< Matrix of RBF evaluations between prescribed and interpolation points on SYCL Queue
 
                 Css.resize((1 + NP + CONFIG::D), (1 + NP + CONFIG::D));
                 Aas.resize((1 + NP + CONFIG::D), 1);
-                
-                linalg::sparse_matrix<INT, REAL> Css_coo((1 + NP + CONFIG::D),(1 + NP + CONFIG::D),"COO");
-                
+                d_Css.resize(q,(1 + NP + CONFIG::D), (1 + NP + CONFIG::D));
+                d_Aas.resize(q,(1 + NP + CONFIG::D), 1);
+                linalg::sparse_matrix<INT, REAL> Css_coo(q,(1 + NP + CONFIG::D),(1 + NP + CONFIG::D),"COO");
+                //linalg::sparse_matrix<INT, REAL> d_Css_coo(q,(1 + NP + CONFIG::D),(1 + NP + CONFIG::D),"COO");
                 for (size_t i = 0; i < NP; i++) 
                 {
                     for (size_t j = i; j < NP; j++) 
@@ -1551,7 +1549,7 @@ private:
                 Css = Css_coo;
                 
          
-                linalg::sparse_matrix<INT, REAL> Aas_coo((1 + NP + CONFIG::D),1,"COO");
+                linalg::sparse_matrix<INT, REAL> Aas_coo(d,(1 + NP + CONFIG::D),1,"COO");
 
                 for (size_t j = 0; j < NP; j++) 
                 {
@@ -1698,7 +1696,8 @@ private:
 
             Css.resize((1 + ptsExtend_.size() + CONFIG::D), (1 + ptsExtend_.size() + CONFIG::D));
             Aas.resize(data_points.size(), (1 + ptsExtend_.size() + CONFIG::D));
-
+            linalg::sparse_matrix<INT, REAL> d_Css(q); //< Matrix of radial basis function evaluations between prescribed points
+            linalg::sparse_matrix<INT, REAL> d_Aas(q); //< Matrix of RBF evaluations between prescribed and interpolation points
             //set Css
             // Define intermediate vectors for performance purpose
             linalg::sparse_matrix<INT, REAL> Css_coo((1 + ptsExtend_.size() + CONFIG::D),(1 + ptsExtend_.size() + CONFIG::D),"COO");

@@ -74,6 +74,22 @@ void sparse_matrix<ITYPE,VTYPE>::resize(ITYPE r, ITYPE c) {
     }
 }
 
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::resize(sycl::queue q, ITYPE r, ITYPE c) {
+    assert(((this->non_zero_elements_count()) == 0) &&
+            "MUI Error [matrix_manipulation.h]: resize function only works for all-zero matrix");
+    rows_ = r;
+    cols_ = c;
+
+    if (matrix_format_ == format::CSR) {
+        sycl::free(matrix_sycl.row, q);
+        matrix_sycl.row=sycl::malloc_shared<ITYPE>((r+1), q);
+    } else if (matrix_format_ == format::CSC) {
+        sycl::free(matrix_sycl.column, q);
+        matrix_sycl.column=sycl::malloc_shared<ITYPE>((c+1),q);
+    }
+}
+
 // Member function to copy a sparse_matrix
 template<typename ITYPE, typename VTYPE>
 void sparse_matrix<ITYPE,VTYPE>::copy(const sparse_matrix<ITYPE,VTYPE> &exist_mat) {

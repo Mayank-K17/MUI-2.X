@@ -1,10 +1,22 @@
 cmake_minimum_required(VERSION 3.18)
 project(MUI VERSION 2.0 DESCRIPTION "Multiscale Universal Interface" LANGUAGES CXX)
 
+# Find the Intel SYCL library
+find_library(SYCL_LIBRARY NAMES sycl PATHS $ENV{ONEAPI_ROOT}/compiler/latest/linux/lib)
+
+if(NOT SYCL_LIBRARY)
+    message(FATAL_ERROR "SYCL library not found. Please set the ONEAPI_ROOT environment variable or specify the path to the SYCL library.")
+else()
+    message(STATUS "SYCL library found: ${SYCL_LIBRARY}")
+endif()
+
+set(CMAKE_CXX_COMPILER "$ENV{ONEAPI_ROOT}/compiler/latest/linux/bin/icpx")
+set(CMAKE_CXX_COMPILER_FLAGS "${CMAKE_CXX_COMPILER_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda -fsycl-unnamed-lambda -O3")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
+set(CMAKE_BUILD_TYPE DEBUG)
 # Wrapper options
 option(C_WRAPPER "Compile C wrapper" OFF)
 option(FORTRAN_WRAPPER "Compile Fortran wrapper" OFF)
@@ -12,7 +24,7 @@ option(PYTHON_WRAPPER "Compile and install Python wrapper using pip" OFF)
 
 include(CMakePackageConfigHelpers)
 include(CheckLanguage)
-
+find_library(SYCL_LIBRARY sycl PATHS ${CMAKE_CXX_COMPILER_DIR} NO_DEFAULT_PATH)
 find_package(MPI REQUIRED)
 if(MPI_FOUND)
 	include_directories(SYSTEM ${MPI_INCLUDE_PATH})
@@ -21,7 +33,8 @@ elseif(NOT MPI_FOUND)
 endif(MPI_FOUND)
 
 add_library(MUI INTERFACE)
-
+include_directories("$ENV{ONEAPI_ROOT}/compiler/latest/linux/include")
+include_directories("$ENV{ONEAPI_ROOT}/compiler/latest/linux/include/sycl")
 target_include_directories (MUI INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include>)

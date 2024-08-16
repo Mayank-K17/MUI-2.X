@@ -52,7 +52,7 @@
 #include <vector>
 #include <cassert>
 #include "linalg_util.h"
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 namespace mui {
 namespace linalg {
@@ -69,10 +69,16 @@ class sparse_matrix {
 
         // Constructor - takes in size of row and column to generate an matrix, with default arguments of format vectors.
         sparse_matrix<ITYPE,VTYPE>(ITYPE, ITYPE, const std::string & = "CSR", const std::vector<VTYPE> & = {}, const std::vector<ITYPE> & = {}, const std::vector<ITYPE> & = {});
+        // Constructor - takes in size of row and column to generate an matrix, with default arguments of format vectors creates a SYCL matrix.
+        sparse_matrix<ITYPE,VTYPE>(sycl::queue, ITYPE, ITYPE, const std::string & = "CSR", const std::vector<VTYPE> & = {}, const std::vector<ITYPE> & = {}, const std::vector<ITYPE> & = {});
         // Constructor - null matrix
         sparse_matrix<ITYPE,VTYPE>(const std::string & = "CSR");
+        // Constructor - null matrix (SYCL)
+        sparse_matrix<ITYPE,VTYPE>(sycl::queue, const std::string & = "CSR");
         // Constructor - takes in another sparse_matrix object as an argument
         sparse_matrix<ITYPE,VTYPE>(const sparse_matrix<ITYPE,VTYPE> &);
+        // Constructor - takes in another sparse_matrix object as an argument (SYCL)
+        sparse_matrix<ITYPE,VTYPE>(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
         // Constructor - takes in a std::vector with row major dense matrix format as an argument
         sparse_matrix<ITYPE,VTYPE>(const std::vector<std::vector<VTYPE>> &, const std::string & = "CSR");
         // Constructor - generate various square matrices
@@ -116,6 +122,7 @@ class sparse_matrix {
 
         // Member function to resize an all-zero or null matrix
         void resize(ITYPE, ITYPE);
+        void resize(sycl::queue,ITYPE, ITYPE);
         // Member function to resize the sycl matrix an all-zero or null matrix
         void sycl_resize(ITYPE, ITYPE);
         // Member function to resize the sycl matrix an all-zero or null matrix
@@ -381,6 +388,7 @@ class sparse_matrix {
         // CSC format data
         m_csc matrix_csc;
 
+        m_sycl_matrix matrix_sycl;
         // Dummy member variable for invalid or unassigned elements in sparse matrix
         VTYPE dummy_ = 0;
         // Sparse matrix debug switch
