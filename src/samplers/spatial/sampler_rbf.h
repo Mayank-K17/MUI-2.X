@@ -1549,7 +1549,7 @@ private:
                 Css = Css_coo;
                 
          
-                linalg::sparse_matrix<INT, REAL> Aas_coo(d,(1 + NP + CONFIG::D),1,"COO");
+                linalg::sparse_matrix<INT, REAL> Aas_coo(q,(1 + NP + CONFIG::D),1,"COO");
 
                 for (size_t j = 0; j < NP; j++) 
                 {
@@ -1700,7 +1700,7 @@ private:
             linalg::sparse_matrix<INT, REAL> d_Aas(q); //< Matrix of RBF evaluations between prescribed and interpolation points
             //set Css
             // Define intermediate vectors for performance purpose
-            linalg::sparse_matrix<INT, REAL> Css_coo((1 + ptsExtend_.size() + CONFIG::D),(1 + ptsExtend_.size() + CONFIG::D),"COO");
+            linalg::sparse_matrix<INT, REAL> Css_coo(q,(1 + ptsExtend_.size() + CONFIG::D),(1 + ptsExtend_.size() + CONFIG::D),"COO");
 
             for ( size_t i = 0; i < ptsExtend_.size(); i++ ) {
                 for ( size_t j = i; j < ptsExtend_.size(); j++ ) {

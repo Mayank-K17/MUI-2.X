@@ -2,6 +2,7 @@
 .project
 .settings
 .pydevproject
+.vscode
 Debug
 Release
 build

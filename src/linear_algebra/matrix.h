@@ -81,8 +81,12 @@ class sparse_matrix {
         sparse_matrix<ITYPE,VTYPE>(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
         // Constructor - takes in a std::vector with row major dense matrix format as an argument
         sparse_matrix<ITYPE,VTYPE>(const std::vector<std::vector<VTYPE>> &, const std::string & = "CSR");
+        // Constructor - takes in a std::vector with row major dense matrix format as an argument
+        sparse_matrix<ITYPE,VTYPE>(sycl::queue, const std::vector<std::vector<VTYPE>> &, const std::string & = "CSR");
         // Constructor - generate various square matrices
         sparse_matrix<ITYPE,VTYPE>(ITYPE, const std::string & = {}, const std::string & = "CSR");
+        // Constructor - generate various square matrices
+        sparse_matrix<ITYPE,VTYPE>(sycl::queue, ITYPE, const std::string & = {}, const std::string & = "CSR");
         // Destructor
         ~sparse_matrix<ITYPE,VTYPE>();
 
@@ -145,7 +149,7 @@ class sparse_matrix {
 
         sparse_matrix<ITYPE,VTYPE> segment(ITYPE, ITYPE, ITYPE, ITYPE, bool = true);
         
-         void sycl_segment_row(sycl::queue , const sparse_matrix<ITYPE,VTYPE> &, ITYPE);
+        void sycl_segment_row(sycl::queue , const sparse_matrix<ITYPE,VTYPE> &, ITYPE);
         void segment_matrix_sycl(sycl::queue , VTYPE*, VTYPE*, ITYPE*,ITYPE*,ITYPE,size_t);
         void sycl_populate_diag(sycl::queue );
         void sycl_populate_diag_vec(sycl::queue , VTYPE *, VTYPE *, ITYPE *, ITYPE *, size_t);
