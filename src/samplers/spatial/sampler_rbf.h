@@ -1297,13 +1297,15 @@ private:
                 errorReturn += iterErrorReturn.second;
 
                 if (smoothing) {
-                    for (size_t j = 0; j < NP; j++) {
+                    for (size_t j = 0; j < NP; j++) 
+                    {
                         INT glob_j = connectivityAB_[row][j];
                         H_toSmooth_.set_value(row, glob_j, H_i.get_value(j, 0));
                     }
                 }
                 else {
-                    for (size_t j = 0; j < NP; j++) {
+                    for (size_t j = 0; j < NP; j++) 
+                    {
                         INT glob_j = connectivityAB_[row][j];
                         H_.set_value(row, glob_j, H_i.get_value(j, 0));
                     }
@@ -1357,8 +1359,10 @@ private:
             // Define intermediate matrix for performance purpose
             linalg::sparse_matrix<INT, REAL> Css_coo((1 + data_points.size() + CONFIG::D),(1 + data_points.size() + CONFIG::D),"COO");
 
-            for ( size_t i = 0; i < data_points.size(); i++ ) {
-                for ( size_t j = i; j < data_points.size(); j++ ) {
+            for ( size_t i = 0; i < data_points.size(); i++ ) 
+            {
+                for ( size_t j = i; j < data_points.size(); j++ ) 
+                {
                     auto d = norm(data_points[i].first - data_points[j].first);
 
                     if ( d < r_ ) {
@@ -1491,19 +1495,16 @@ private:
         }
         
         H_.initialize_memory(data_points.size(),NP);
-        
+        ITYPE mat_size;
         if( pou ) { // Using partitioned approach
             for (size_t row = 0; row < data_points.size(); row++) 
             {
-                linalg::sparse_matrix<INT, REAL> Css; //< Matrix of radial basis function evaluations between prescribed points
-                linalg::sparse_matrix<INT, REAL> Aas; //< Matrix of RBF evaluations between prescribed and interpolation points
-                linalg::sparse_matrix<INT, REAL> d_Css(q); //< Matrix of radial basis function evaluations between prescribed points on the SYCL Qsueue
-                linalg::sparse_matrix<INT, REAL> d_Aas(q); //< Matrix of RBF evaluations between prescribed and interpolation points on SYCL Queue
+                linalg::sparse_matrix<INT, REAL> Css(q); //< Matrix of radial basis function evaluations between prescribed points
+                linalg::sparse_matrix<INT, REAL> Aas(q); //< Matrix of RBF evaluations between prescribed and interpolation points
 
-                Css.resize((1 + NP + CONFIG::D), (1 + NP + CONFIG::D));
-                Aas.resize((1 + NP + CONFIG::D), 1);
-                d_Css.resize(q,(1 + NP + CONFIG::D), (1 + NP + CONFIG::D));
-                d_Aas.resize(q,(1 + NP + CONFIG::D), 1);
+                Css.resize(q,(1 + NP + CONFIG::D), (1 + NP + CONFIG::D));
+                Aas.resize(q,(1 + NP + CONFIG::D), 1);
+                
                 linalg::sparse_matrix<INT, REAL> Css_coo(q,(1 + NP + CONFIG::D),(1 + NP + CONFIG::D),"COO");
                 //linalg::sparse_matrix<INT, REAL> d_Css_coo(q,(1 + NP + CONFIG::D),(1 + NP + CONFIG::D),"COO");
                 for (size_t i = 0; i < NP; i++) 
@@ -1545,8 +1546,12 @@ private:
                         Css_coo.set_value((NP + dim + 1), i, ptsExtend_[glob_i][dim], false);
                     }
                 }
-    
-                Css = Css_coo;
+                //Css = Css_coo;
+
+                mat_size = Css_coo.matrix_coo.values_.size();
+                Css.sycl_assign_memory(q,mat_size);
+                Css.sycl_assign_vec_memory(q,mat_size);
+                Css.copy_matrix_from(q,Css_coo);
                 
          
                 linalg::sparse_matrix<INT, REAL> Aas_coo(q,(1 + NP + CONFIG::D),1,"COO");
@@ -1564,6 +1569,7 @@ private:
                     }
                 }
 
+               
                 Aas_coo.set_value(NP, 0, 1, false);
               
 
@@ -1572,21 +1578,26 @@ private:
                     Aas_coo.set_value((NP + dim + 1), 0, data_points[row].first[dim], false);
         
                 }
-                Aas = Aas_coo;
+
+                //Aas = Aas_coo;
+                mat_size = Aas_coo.matrix_coo.values_.size();
+                Aas.sycl_assign_memory(q,mat_size);
+                Aas.sycl_assign_vec_memory(q,row);
+                Aas.copy_matrix_from(q,Aas_coo);
                 
                 linalg::sparse_matrix<INT, REAL> H_i;
 
                 if (precond_ == 0) 
                 {
-                    linalg::conjugate_gradient<INT, REAL> cg(Css, Aas, cgSolveTol_, cgMaxIter_);
-                    iterErrorReturn = cg.solve();
+                    linalg::conjugate_gradient<INT, REAL> cg(q,Css, Aas, cgSolveTol_, cgMaxIter_);
+                    iterErrorReturn = cg.solve(q);
                     H_i = cg.getSolution();
                 }
                 else if (precond_ == 1) 
                 {
-                    linalg::diagonal_preconditioner<INT, REAL> M(Css);
-                    linalg::conjugate_gradient<INT, REAL> cg(Css, Aas, cgSolveTol_, cgMaxIter_, &M);
-                    iterErrorReturn = cg.solve();
+                    linalg::diagonal_preconditioner<INT, REAL> M(q,Css);
+                    linalg::conjugate_gradient<INT, REAL> cg(q,Css, Aas, cgSolveTol_, cgMaxIter_, &M);
+                    iterErrorReturn = cg.solve(q);
                     H_i = cg.getSolution();
                 }
                 else 

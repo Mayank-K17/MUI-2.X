@@ -57,6 +57,7 @@ class preconditioner {
     public:
         // Abstract function on preconditioner apply
         virtual sparse_matrix<ITYPE,VTYPE> apply(const sparse_matrix<ITYPE,VTYPE> &) = 0;
+        virtual void apply(sycl::queue, sparse_matrix<ITYPE,VTYPE> &, const sparse_matrix<ITYPE,VTYPE> &) = 0;
         // Destructor
         virtual ~preconditioner(){};
 };
@@ -124,15 +125,17 @@ class diagonal_preconditioner : public preconditioner<ITYPE,VTYPE> {
     public:
         // Constructor
         diagonal_preconditioner(const sparse_matrix<ITYPE,VTYPE>&);
+        diagonal_preconditioner(sycl::queue, const sparse_matrix<ITYPE,VTYPE>&);
         // Destructor
         ~diagonal_preconditioner();
         // Member function on preconditioner apply
         sparse_matrix<ITYPE,VTYPE> apply(const sparse_matrix<ITYPE,VTYPE>&);
-
+        void apply(sycl::queue, sparse_matrix<ITYPE,VTYPE>&, const sparse_matrix<ITYPE,VTYPE>&);
+    
     private:
         // The inverse diagonal matrix
         sparse_matrix<ITYPE,VTYPE> inv_diag_;
-
+        sparse_matrix<ITYPE,VTYPE> sycl_z_;
 };
 
 } // linalg

@@ -66,6 +66,7 @@ class solver {
     public:
         // Abstract function for solve
         virtual std::pair<ITYPE, VTYPE> solve(sparse_matrix<ITYPE,VTYPE> = sparse_matrix<ITYPE,VTYPE>()) = 0;
+        virtual std::pair<ITYPE, VTYPE> solve(sycl::queue, sparse_matrix<ITYPE,VTYPE> = sparse_matrix<ITYPE,VTYPE>()) = 0;
         // Abstract function to get the solution
         virtual sparse_matrix<ITYPE,VTYPE> getSolution() = 0;
 };
@@ -77,10 +78,12 @@ class conjugate_gradient_1d : public solver<ITYPE,VTYPE> {
     public:
         // Constructor
         conjugate_gradient_1d(sparse_matrix<ITYPE,VTYPE>, sparse_matrix<ITYPE,VTYPE>, VTYPE = 1e-6, ITYPE = 0, preconditioner<ITYPE,VTYPE>* = nullptr);
+        conjugate_gradient_1d(sycl::queue, sparse_matrix<ITYPE,VTYPE>, sparse_matrix<ITYPE,VTYPE>, VTYPE = 1e-6, ITYPE = 0, preconditioner<ITYPE,VTYPE>* = nullptr);
         // Destructor
         ~conjugate_gradient_1d();
         // Member function for solve
         std::pair<ITYPE, VTYPE> solve(sparse_matrix<ITYPE,VTYPE> = sparse_matrix<ITYPE,VTYPE>());
+        std::pair<ITYPE, VTYPE> solve(sycl::queue, sparse_matrix<ITYPE,VTYPE> = sparse_matrix<ITYPE,VTYPE>());
         // Member function to get the solution
         sparse_matrix<ITYPE,VTYPE> getSolution();
 
@@ -97,6 +100,12 @@ class conjugate_gradient_1d : public solver<ITYPE,VTYPE> {
         sparse_matrix<ITYPE,VTYPE> z_;
         // The direction matrix of the CG solver
         sparse_matrix<ITYPE,VTYPE> p_;
+        
+        sparse_matrix<ITYPE,VTYPE> Ax0;
+
+        sparse_matrix<ITYPE,VTYPE> tempZ;
+
+        sparse_matrix<ITYPE,VTYPE> Ap;
         // Tolerance of CG solver
         VTYPE cg_solve_tol_;
         // Maximum iteration of CG solver
@@ -113,10 +122,12 @@ class conjugate_gradient : public solver<ITYPE,VTYPE> {
     public:
         // Constructor
         conjugate_gradient(sparse_matrix<ITYPE,VTYPE>, sparse_matrix<ITYPE,VTYPE>, VTYPE = 1e-6, ITYPE = 0, preconditioner<ITYPE,VTYPE>* = nullptr);
+        conjugate_gradient(sycl::queue, sparse_matrix<ITYPE,VTYPE>, sparse_matrix<ITYPE,VTYPE>, VTYPE = 1e-6, ITYPE = 0, preconditioner<ITYPE,VTYPE>* = nullptr);
         // Destructor
         ~conjugate_gradient();
         // Member function for solve
         std::pair<ITYPE, VTYPE> solve(sparse_matrix<ITYPE,VTYPE> = sparse_matrix<ITYPE,VTYPE>());
+        std::pair<ITYPE, VTYPE> solve(sycl::queue, sparse_matrix<ITYPE,VTYPE> = sparse_matrix<ITYPE,VTYPE>());
         // Member function to get the solution
         sparse_matrix<ITYPE,VTYPE> getSolution();
 
@@ -131,6 +142,8 @@ class conjugate_gradient : public solver<ITYPE,VTYPE> {
         sparse_matrix<ITYPE,VTYPE> x_init_column_;
         // The variable matrix of the matrix equation
         sparse_matrix<ITYPE,VTYPE> x_;
+        
+        sparse_matrix<ITYPE,VTYPE> x_column;
         // Tolerance of CG solver
         VTYPE cg_solve_tol_;
         // Maximum iteration of CG solver

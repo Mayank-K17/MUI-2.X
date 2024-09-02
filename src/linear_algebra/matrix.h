@@ -128,13 +128,12 @@ class sparse_matrix {
         void resize(ITYPE, ITYPE);
         void resize(sycl::queue,ITYPE, ITYPE);
         // Member function to resize the sycl matrix an all-zero or null matrix
-        void sycl_resize(ITYPE, ITYPE);
         // Member function to resize the sycl matrix an all-zero or null matrix
-        void sycl_assign_memory(ITYPE);
-        void sycl_assign_memory(ITYPE,ITYPE);
+        void sycl_assign_memory(sycl::queue, ITYPE);
+        void sycl_assign_memory(sycl::queue, ITYPE,ITYPE);
         /// @brief 
         /// @param  
-        void sycl_assign_vec_memory(ITYPE);
+        void sycl_assign_vec_memory(sycl::queue,ITYPE);
         // Member function to resize the sycl matrix to all-zero 
         void sycl_assign_zero(sycl::queue, ITYPE*, size_t);
         
@@ -177,6 +176,7 @@ class sparse_matrix {
 
         // Member function to swap two elements in a sparse matrix
         void swap_elements(ITYPE, ITYPE, ITYPE, ITYPE);
+        
         void copy_sycl_data(sycl::queue, VTYPE *, VTYPE *, size_t) const;
         void copy_sycl_data(sycl::queue,ITYPE *, ITYPE *, size_t) const;
         // Member function to set all elements to zero and empty the sparse matrix
@@ -201,8 +201,12 @@ class sparse_matrix {
         void multiply_scalar(ITYPE, ITYPE, VTYPE, bool = true);
         // Overloaded assignment operator
         sparse_matrix<ITYPE,VTYPE>& operator=(const sparse_matrix<ITYPE,VTYPE> &);
+        // Copy matrix and populate sycl matrix
+        sparse_matrix<ITYPE,VTYPE>& copy_matrix_from(sycl::queue , const sparse_matrix<ITYPE,VTYPE> &);
         // Member function to convert the format of the sparse matrix
         void format_conversion(const std::string & = "COO", bool = true, bool = false, const std::string & = "overwrite");
+        // Member function to convert the format of the sparse matrix SYCL version
+        void format_conversion(sycl::queue, const std::string & = "COO", bool = true, bool = false, const std::string & = "overwrite");
         // Member function to sort the entries for the sparse matrix
         void sort_deduplication(bool = true, bool = true, const std::string & = "overwrite", bool = true);
 
@@ -263,7 +267,7 @@ class sparse_matrix {
         // *****************************************
         // ********* Matrix manipulations **********
         // *****************************************
-
+        
         // Protected member function to sort the entries by row and column for sparse matrix with COO format
         void sort_coo(bool = true, bool = false, const std::string & = "overwrite");
         // Protected member function to sort the entries for sparse matrix with CSR format
@@ -286,6 +290,10 @@ class sparse_matrix {
         void coo_to_csr();
         // Protected member function to convert COO matrix into CSC matrix
         void coo_to_csc();
+        // Protected member function to convert CSR matrix into COO matrix defining sycl matrix
+        void coo_to_csr(sycl::queue);
+        // Protected member function to convert COO matrix into CSC matrix defining sycl matrix
+        void coo_to_csc(sycl::queue);
         // Protected member function to convert CSR matrix into COO matrix
         void csr_to_coo();
         // Protected member function to convert CSR matrix into CSC matrix

@@ -86,6 +86,69 @@ conjugate_gradient<ITYPE, VTYPE>::conjugate_gradient(sparse_matrix<ITYPE,VTYPE> 
         x_init_column_.resize(b_.get_rows(),1);
 }
 
+template<typename ITYPE, typename VTYPE>
+conjugate_gradient_1d<ITYPE, VTYPE>::conjugate_gradient_1d(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> A, sparse_matrix<ITYPE,VTYPE> b, VTYPE cg_solve_tol, ITYPE cg_max_iter, preconditioner<ITYPE,VTYPE>* M)
+    : A_(defaultQueue,A),
+      b_(defaultQueue,b),
+      cg_solve_tol_(cg_solve_tol),
+      cg_max_iter_(cg_max_iter),
+      M_(M)
+    {
+        assert(b_.get_cols() == 1 &&
+                "MUI Error [solver_cg.h]: Number of column of b matrix must be 1");
+        
+        x_.resize(defaultQueue, A_.get_rows(),1);
+        x_.sycl_assign_memory(defaultQueue,A_.get_rows());
+        x_.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        r_.resize(defaultQueue, A_.get_rows(),1);
+        r_.sycl_assign_memory(defaultQueue,A_.get_rows());
+        r_.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        z_.resize(defaultQueue, A_.get_rows(),1);
+        z_.sycl_assign_memory(defaultQueue,A_.get_rows());
+        z_.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        p_.resize(defaultQueue, A_.get_rows(),1);
+        p_.sycl_assign_memory(defaultQueue,A_.get_rows());
+        p_.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        
+        Ax0.resize(defaultQueue, A_.get_rows(),1);
+        Ax0.sycl_assign_memory(defaultQueue,A_.get_rows());
+        Ax0.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        tempZ.resize(defaultQueue, A_.get_rows(),1);
+        tempZ.sycl_assign_memory(defaultQueue,A_.get_rows());
+        tempZ.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        Ap.resize(defaultQueue, A_.get_rows(),1);
+        Ap.sycl_assign_memory(defaultQueue,A_.get_rows());
+        Ap.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+    }
+
+// Constructor for multidimensional Conjugate Gradient solver
+template<typename ITYPE, typename VTYPE>
+conjugate_gradient<ITYPE, VTYPE>::conjugate_gradient(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> A, sparse_matrix<ITYPE,VTYPE> b, VTYPE cg_solve_tol, ITYPE cg_max_iter, preconditioner<ITYPE,VTYPE>* M)
+    : A_(defaultQueue,A),
+      b_(defaultQueue,b),
+      cg_solve_tol_(cg_solve_tol),
+      cg_max_iter_(cg_max_iter),
+      M_(M)
+      {
+        assert(A_.get_rows() == b_.get_rows() &&
+                "MUI Error [solver_cg.h]: Number of rows of A matrix must be the same as the number of rows of b matrix");
+        b_column_.resize(defaultQueue, b_.get_rows(),1);
+        b_column_.sycl_assign_memory(defaultQueue,b_.get_rows(),1);
+        b_column_.sycl_assign_vec_memory(defaultQueue,b_.get_rows());
+        
+        x_.resize(defaultQueue, b_.get_rows(),b_.get_cols());
+        x_.sycl_assign_memory(defaultQueue,b_.get_rows(),b_.get_cols());
+    
+        x_init_column_.resize(defaultQueue, b_.get_rows(),1);
+        x_init_column_.sycl_assign_memory(defaultQueue,b_.get_rows(),1);
+        x_init_column_.sycl_assign_vec_memory(defaultQueue,b_.get_rows());
+        
+        x_column.resize(defaultQueue, b_.get_rows(),1);
+        x_column.sycl_assign_memory(defaultQueue,b_.get_rows(),1);
+        x_column.sycl_assign_vec_memory(defaultQueue,b_.get_rows());
+      }
+
+
 // Destructor for one-dimensional Conjugate Gradient solver
 template<typename ITYPE, typename VTYPE>
 conjugate_gradient_1d<ITYPE, VTYPE>::~conjugate_gradient_1d() {
@@ -124,6 +187,110 @@ conjugate_gradient<ITYPE, VTYPE>::~conjugate_gradient() {
         delete[] M_;
     }
 }
+
+//Solver CG using SYCL
+template<typename ITYPE, typename VTYPE>
+std::pair<ITYPE, VTYPE> conjugate_gradient_1d<ITYPE, VTYPE>::solve(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> x_init) 
+{
+    auto functime = 0.;
+    if (!x_init.empty())
+    {
+        assert(((x_init.get_rows() == x_.get_rows()) && (x_init.get_cols() == x_.get_cols())) &&
+                "MUI Error [solver_cg.h]: Size of x_init matrix mismatch with size of x_ matrix");
+        x_.copy(x_init);
+        Ax0.sycl_multiply(defaultQueue, A_, x_init);
+        r_.copy(b_-Ax0);
+    }
+    else 
+    {
+        r_.sycl_1d_vec_copy(defaultQueue,b_);
+    }
+ 
+    z_.sycl_1d_vec_copy(defaultQueue,r_);
+
+    if (M_) 
+    {
+        M_->apply(defaultQueue,tempZ,z_);
+        z_.sycl_1d_vec_copy(defaultQueue,tempZ);
+        
+    }
+    
+    p_.sycl_1d_vec_copy(defaultQueue,z_);
+    x_.sycl_copy_val_vector(defaultQueue);
+    auto t1 = std::chrono::high_resolution_clock::now();
+    VTYPE r_norm0 = r_.sycl_dot_product(defaultQueue,z_);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    //functime = functime + (std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count());
+    
+    assert(std::abs(r_norm0) >= std::numeric_limits<VTYPE>::min() &&
+            "MUI Error [solver_cg.h]: Divide by zero assert for r_norm0");
+    VTYPE r_norm = r_norm0;
+    VTYPE r_norm_rel = std::sqrt(r_norm/r_norm0);
+    ITYPE acturalKIterCount = 0;
+    
+    ITYPE kIter;
+    if(cg_max_iter_ == 0) 
+    {
+        kIter = std::numeric_limits<ITYPE>::max();
+    } 
+    else 
+    {
+        kIter = cg_max_iter_;
+    }
+
+    char ch;
+    
+    for (ITYPE k = 0; k < kIter; ++k) 
+    {
+        ++acturalKIterCount;
+        //t1 = std::chrono::high_resolution_clock::now();
+        Ap.sycl_multiply(defaultQueue,A_,p_);
+        
+        VTYPE p_dot_Ap = p_.sycl_dot_product(defaultQueue,Ap);
+       
+       
+        //t1 = std::chrono::high_resolution_clock::now();
+        assert(std::abs(p_dot_Ap) >= std::numeric_limits<VTYPE>::min() &&
+                "MUI Error [solver_cg.h]: Divide by zero assert for p_dot_Ap");
+        
+        VTYPE alpha = r_norm / p_dot_Ap;
+       
+        x_.sycl_add_scalar(defaultQueue, p_,alpha);
+        r_.sycl_subtract_scalar(defaultQueue, Ap,alpha);
+        z_.sycl_1d_vec_copy(defaultQueue,r_);
+        //t2 = std::chrono::high_resolution_clock::now();
+        //functime = functime + (std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count());
+        
+        if (M_) 
+        {
+            
+            M_->apply(defaultQueue,tempZ,z_);
+            z_.sycl_1d_vec_copy(defaultQueue,tempZ);
+        }
+       // t1 = std::chrono::high_resolution_clock::now();
+        VTYPE updated_r_norm = r_.sycl_dot_product(defaultQueue,z_);
+       // t2 = std::chrono::high_resolution_clock::now();
+       // functime = functime + (std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count());
+        assert(std::abs(r_norm) >= std::numeric_limits<VTYPE>::min() &&
+                "MUI Error [solver_cg.h]: Divide by zero assert for r_norm");
+        VTYPE beta = updated_r_norm / r_norm;
+        r_norm = updated_r_norm;
+        p_.set_axpby(defaultQueue, z_,1,beta,A_.get_rows());
+        
+        r_norm_rel = std::sqrt(r_norm/r_norm0);
+        if (r_norm_rel <= cg_solve_tol_) 
+        {
+        //    std::cout << std::endl <<  " Updated R norm : " << updated_r_norm << "At iteration k : " << k <<std::endl;
+            break;
+        }
+        // t2 = std::chrono::high_resolution_clock::now();
+        // functime = functime + (std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count());
+        
+    }
+    return std::make_pair(acturalKIterCount,r_norm_rel);
+}
+
+
 
 // Member function for one-dimensional Conjugate Gradient solver to solve
 template<typename ITYPE, typename VTYPE>
@@ -208,6 +375,9 @@ std::pair<ITYPE, VTYPE> conjugate_gradient_1d<ITYPE, VTYPE>::solve(sparse_matrix
     return std::make_pair(acturalKIterCount,r_norm_rel);
 }
 
+
+
+
 // Member function for multidimensional Conjugate Gradient solver to solve
 template<typename ITYPE, typename VTYPE>
 std::pair<ITYPE, VTYPE> conjugate_gradient<ITYPE, VTYPE>::solve(sparse_matrix<ITYPE,VTYPE> x_init) {
@@ -237,6 +407,55 @@ std::pair<ITYPE, VTYPE> conjugate_gradient<ITYPE, VTYPE>::solve(sparse_matrix<IT
     }
     cgReturn.second /= b_.get_cols();
 
+    return cgReturn;
+}
+
+// Member function for multidimensional Conjugate Gradient solver to solve
+template<typename ITYPE, typename VTYPE>
+std::pair<ITYPE, VTYPE> conjugate_gradient<ITYPE, VTYPE>::solve(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> x_init) {
+    if (!x_init.empty()){
+        assert(((x_init.get_rows() == b_.get_rows()) && (x_init.get_cols() == b_.get_cols())) &&
+                "MUI Error [solver_cg.h]: Size of x_init matrix mismatch with size of b_ matrix");
+    }
+
+    std::pair<ITYPE, VTYPE> cgReturn;
+    auto functime = 0.;
+    
+    for (ITYPE j = 0; j <b_.get_cols(); ++j) 
+    {
+       
+        b_column_.sycl_segment_row(defaultQueue, b_, j);
+   
+        conjugate_gradient_1d<ITYPE, VTYPE> cg(A_, b_column_, cg_solve_tol_, cg_max_iter_, M_);
+       
+        if (!x_init.empty()) 
+        {
+            x_init_column_.sycl_segment_row(defaultQueue, x_init, j);
+        }
+        auto t1 = std::chrono::high_resolution_clock::now();
+        std::pair<ITYPE, VTYPE> cgReturnTemp = cg.solve(defaultQueue,x_init_column_);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::cout<< j << " out of " << b_.get_cols() - 1 <<"iteartions" <<std::endl;
+        functime = functime + std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count();
+
+        if (cgReturn.first < cgReturnTemp.first)
+            cgReturn.first = cgReturnTemp.first;
+        cgReturn.second += cgReturnTemp.second;
+        /*
+        sparse_matrix<ITYPE,VTYPE> x_column(b_.get_rows(),1);
+        x_column.sycl_assign_vec_memory(b_.get_rows());
+        
+        x_column = cg.getSolution();
+        cg.copy_vecSolution(defaultQueue, x_column );
+        for (ITYPE i = 0; i < x_column.get_rows(); ++i) 
+        {
+              x_.set_value(i, j, x_column.get_sycl_vec_value(i));
+        }
+        */
+    }
+    cgReturn.second /= b_.get_cols();
+    std::cout << "Total residuals = " << (cgReturn.second) <<std::endl;
+    std::cout << "Total CG function time = " << (functime/1000) <<std::endl;
     return cgReturn;
 }
 

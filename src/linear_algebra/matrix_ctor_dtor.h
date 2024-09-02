@@ -279,10 +279,15 @@ sparse_matrix<ITYPE,VTYPE>::sparse_matrix(sycl::queue q, const std::string &form
 
     this->sparse_matrix<ITYPE,VTYPE>::set_matrix_format(format);
 
-    if (matrix_format_ == format::CSR) {
+    if (matrix_format_ == format::CSR) 
+    {
+        matrix_csr.row_ptrs_.resize((rows_+1), 0);
         sycl::free(matrix_sycl.row,q);
         matrix_sycl.row = sycl::malloc_shared<ITYPE>((rows_+1),q);
-    } else if (matrix_format_ == format::CSC) {
+    } 
+    else if (matrix_format_ == format::CSC) 
+    {
+        matrix_csc.col_ptrs_.resize((cols_+1), 0);
         sycl::free(matrix_sycl.column,q);
         matrix_sycl.column = sycl::malloc_shared<ITYPE>((cols_+1),q);
     }
@@ -374,15 +379,15 @@ sparse_matrix<ITYPE,VTYPE>::sparse_matrix(sycl::queue q, const sparse_matrix<ITY
              matrix_sycl.vector_val = sycl::malloc_shared<VTYPE>(exist_mat.rows_, q);
           }
           
-          /*
-          copy_sycl_data(defaultQueue,matrix_sycl.values,exist_mat.matrix_sycl.values,mat_size);
-          copy_sycl_data(defaultQueue,matrix_sycl.row,exist_mat.matrix_sycl.row,mat_row_size);
-          copy_sycl_data(defaultQueue,matrix_sycl.column,exist_mat.matrix_sycl.column,mat_col_size);
+          
+          copy_sycl_data(q,matrix_sycl.values,exist_mat.matrix_sycl.values,mat_size);
+          copy_sycl_data(q,matrix_sycl.row,exist_mat.matrix_sycl.row,mat_row_size);
+          copy_sycl_data(q,matrix_sycl.column,exist_mat.matrix_sycl.column,mat_col_size);
           if (exist_mat.get_cols() == 1)
           {
-            copy_sycl_data(defaultQueue,matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.rows_);
+            copy_sycl_data(q,matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.rows_);
           }
-          */
+          
           
       } 
       else if (matrix_format_ == format::CSC) 
@@ -399,12 +404,12 @@ sparse_matrix<ITYPE,VTYPE>::sparse_matrix(sycl::queue q, const sparse_matrix<ITY
           matrix_sycl.column = sycl::malloc_device<ITYPE>(mat_col_size, q);
           matrix_sycl.vector_val = sycl::malloc_device<VTYPE>(exist_mat.cols_, q);
           
-          /*
-          copy_sycl_data(defaultQueue,matrix_sycl.values,exist_mat.matrix_sycl.values,mat_size);
-          copy_sycl_data(defaultQueue,matrix_sycl.row,exist_mat.matrix_sycl.row,mat_row_size);
-          copy_sycl_data(defaultQueue,matrix_sycl.column,exist_mat.matrix_sycl.column,mat_col_size);
-          copy_sycl_data(defaultQueue,matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.cols_);
-          */
+          
+          copy_sycl_data(q,matrix_sycl.values,exist_mat.matrix_sycl.values,mat_size);
+          copy_sycl_data(q,matrix_sycl.row,exist_mat.matrix_sycl.row,mat_row_size);
+          copy_sycl_data(q,matrix_sycl.column,exist_mat.matrix_sycl.column,mat_col_size);
+          copy_sycl_data(q,matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.cols_);
+          
       } 
       else 
       {

@@ -75,6 +75,32 @@ diagonal_preconditioner<ITYPE,VTYPE>::~diagonal_preconditioner() {
     inv_diag_.set_zero();
 }
 
+template<typename ITYPE, typename VTYPE>
+diagonal_preconditioner<ITYPE,VTYPE>::diagonal_preconditioner(sycl::queue defaultQueue, const sparse_matrix<ITYPE,VTYPE>& A) 
+{
+    // Initialise the lower triangular matrix
+    inv_diag_.resize(defaultQueue, A.get_rows(), A.get_cols());
+    inv_diag_.sycl_assign_memory(defaultQueue, A.get_rows(), A.get_cols());
+    
+    sycl_z_.resize(defaultQueue,A.get_rows(),1);
+    sycl_z_.sycl_assign_memory(defaultQueue,A.get_rows(), 1);
+    sycl_z_.sycl_assign_vec_memory(defaultQueue,A.get_rows());
+
+    inv_diag_.sycl_assign_vec_memory(defaultQueue,A.get_rows());
+    // Construct the inverse diagonal matrix
+    for (int i = 0; i < A.get_rows(); i++) 
+    {
+        if (std::abs(A.get_value(i,i)) >= std::numeric_limits<VTYPE>::min()) 
+        {
+            inv_diag_.set_value(i, i, 1.0 / A.get_value(i,i));
+        } 
+        else 
+        {
+            inv_diag_.set_value(i, i, 1.0);
+        }
+    }
+    inv_diag_.sycl_populate_diag(defaultQueue);
+ }
 // Member function on preconditioner apply
 template<typename ITYPE, typename VTYPE>
 sparse_matrix<ITYPE,VTYPE> diagonal_preconditioner<ITYPE,VTYPE>::apply(const sparse_matrix<ITYPE,VTYPE>& x) {
@@ -91,6 +117,15 @@ sparse_matrix<ITYPE,VTYPE> diagonal_preconditioner<ITYPE,VTYPE>::apply(const spa
     }
 
     return z;
+}
+
+template <typename ITYPE, typename VTYPE>
+inline void diagonal_preconditioner<ITYPE, VTYPE>::apply(sycl::queue defaultQueue, sparse_matrix<ITYPE, VTYPE> &z,   const sparse_matrix<ITYPE, VTYPE> &x)
+{
+    assert((x.get_cols()==1) &&
+        "MUI Error [preconditioner_diagonal.h]: apply only works for column vectors");
+    z.sycl_multiply_vector(defaultQueue,x,inv_diag_);
+    
 }
 
 } // linalg

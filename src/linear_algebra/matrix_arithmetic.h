@@ -748,6 +748,71 @@ sparse_matrix<ITYPE,VTYPE> sparse_matrix<ITYPE,VTYPE>::operator*(const STYPE &sc
 
 }
 
+//SYCL multiply
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::sycl_multiply(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> &matrix, sparse_matrix<ITYPE,VTYPE> &multi_vec)
+{
+    ITYPE vec_size = matrix.rows_;
+    sycl_multiply_mat_vec(defaultQueue,matrix_sycl.values,matrix_sycl.vector_val,matrix.matrix_sycl.values,multi_vec.matrix_sycl.vector_val,matrix_sycl.column,matrix_sycl.row,matrix.matrix_sycl.column,matrix.matrix_sycl.row, vec_size);
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::sycl_multiply_vector(sycl::queue defaultQueue, const sparse_matrix<ITYPE,VTYPE> &matrix, sparse_matrix<ITYPE,VTYPE> &multi_vec)
+{
+    ITYPE vec_size = matrix.rows_;
+    sycl_multiply_vec_vec(defaultQueue,matrix_sycl.vector_val,matrix.matrix_sycl.vector_val,multi_vec.matrix_sycl.vector_val, vec_size);
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::sycl_multiply_mat_vec(sycl::queue defaultQueue, VTYPE *res_mat, VTYPE *res_vec, VTYPE *mat_value, VTYPE *vec_value, ITYPE *res_col, ITYPE *res_row, ITYPE *mat_column, ITYPE *mat_row,  ITYPE size_row) 
+{
+    size_t rows = size_row;
+    auto cag = [&](sycl::handler &ga)
+    {
+        ga.parallel_for(sycl::range(rows),[=](sycl::id<1>idx)
+        {
+            auto startIdx = mat_row[idx];
+            auto endIdx = mat_row[idx+1];
+            auto col_idx = 0;
+            res_row[0] = 0;
+            res_vec[idx] = 0.;
+            for (int i = startIdx; i < endIdx; i++)
+            {
+                col_idx = mat_column[i];
+                res_vec[idx] += mat_value[i]*vec_value[col_idx];
+            }
+            res_mat[idx] = res_vec[idx];
+            res_col[idx] = 0;
+            res_row[idx+1] = idx;
+        });
+    };
+    defaultQueue.submit(cag).wait(); 
+    //for (int i=0;i<rows;i++)
+    //{
+    //    std::cout<< "Matrix values : " << res_mat[i] << " and vec value : " << res_vec[i] <<std::endl;
+    //}
+}
+
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::sycl_multiply_vec_vec(sycl::queue defaultQueue, VTYPE *res_vec, VTYPE *mat_value, VTYPE *vec_value,  ITYPE size_row) 
+{
+    size_t rows = size_row;
+    auto cag = [&](sycl::handler &ga)
+    {
+        ga.parallel_for(sycl::range(rows),[=](sycl::id<1>idx)
+        {
+            res_vec[idx] = 0.;
+            if (abs(vec_value[idx])>= std::numeric_limits<VTYPE>::min())
+            {
+                res_vec[idx] = mat_value[idx]*vec_value[idx];
+            }
+        });
+    };
+    defaultQueue.submit(cag).wait(); 
+}
+
+
 // Overload multiplication operator to perform scalar multiplication x*A
 template<typename ITYPE, typename VTYPE, typename STYPE>
 sparse_matrix<ITYPE,VTYPE> operator*(const STYPE &scalar, const sparse_matrix<ITYPE,VTYPE> &exist_mat) {
@@ -765,6 +830,74 @@ VTYPE sparse_matrix<ITYPE,VTYPE>::dot_product(sparse_matrix<ITYPE,VTYPE> &exist_
     assert(((tempMat.get_rows() == 1)&&(tempMat.get_cols() == 1)) &&
                     "MUI Error [matrix_arithmetic.h]: result of dot_product function should be a scalar");
     return (tempMat.get_value(0,0));
+}
+
+
+template <typename ITYPE, typename VTYPE>
+VTYPE sparse_matrix<ITYPE,VTYPE>::sycl_dot_product(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> &exist_mat)
+{
+    assert(((cols_ == 1)&&(exist_mat.cols_ == 1)) &&
+        "MUI Error [matrix_arithmetic.h]: dot_product function only works for column vectors");
+    VTYPE product;
+    
+    product = sycl_dotp_vec_vec(defaultQueue, this->matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.get_rows());
+    
+    return (product);
+}
+
+template<typename ITYPE, typename VTYPE>
+VTYPE sparse_matrix<ITYPE,VTYPE>::sycl_dotp_vec_vec(sycl::queue defaultQueue, VTYPE *vec1_value, VTYPE *vec2_value,  ITYPE size_row) 
+{
+    size_t rows = size_row;
+    VTYPE *prod;
+    prod = (VTYPE *)malloc(1);
+    prod[0] = 0.;
+    VTYPE *dotp;
+    dotp = sycl::malloc_device<VTYPE>(1,defaultQueue);
+    defaultQueue.memcpy(dotp,prod,(sizeof(VTYPE))).wait();
+    auto chg = [&](sycl::handler &hc)
+    {
+        hc.parallel_for(sycl::range(rows),[=](sycl::id<1> idx) 
+        {
+            auto product = 0.;
+            product = vec1_value[idx] * vec2_value[idx];
+            auto v = sycl::atomic_ref<
+                         VTYPE, sycl::memory_order::relaxed,
+                         sycl::memory_scope::device,
+                         sycl::access::address_space::global_space>(*dotp);
+            v.fetch_add(product);
+        });
+    };
+    defaultQueue.submit(chg).wait();
+    
+    defaultQueue.memcpy(prod,dotp,(sizeof(VTYPE))).wait();
+    //std::cout<<" Dot product value : "<< prod[0] <<std::endl;
+    return (prod[0]);
+}
+
+
+template<typename ITYPE, typename VTYPE>
+VTYPE sparse_matrix<ITYPE,VTYPE>::sycl_dotp_red_vec_vec(sycl::queue defaultQueue, VTYPE *vec1_value, VTYPE *vec2_value,  ITYPE size_row) 
+{
+      
+      sycl::nd_range<1> range{5000,1000};
+      sycl::buffer<VTYPE> sum{1};
+      auto init = sycl::property::reduction::initialize_to_identity{};
+      auto chg = [&](sycl::handler& h)
+      {
+          
+          auto reductor = sycl::reduction(sum, h, VTYPE{0.0}, std::plus<VTYPE>(), init);
+          h.parallel_for(range, reductor,[=](sycl::nd_item<1> it, auto& sum) 
+            {
+              std::size_t idx = it.get_global_id(0);
+              std::size_t size = it.get_global_range(0);
+              for (std::size_t i = idx; i < size_row; i += size)
+                 sum += vec1_value[i] * vec2_value[i];
+            });
+       }; 
+       defaultQueue.submit(chg).wait();
+       sycl::host_accessor sum_host{sum};
+       return sum_host[0];
 }
 
 // Member function of Hadamard product
