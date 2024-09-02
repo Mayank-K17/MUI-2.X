@@ -113,9 +113,11 @@ conjugate_gradient_1d<ITYPE, VTYPE>::conjugate_gradient_1d(sycl::queue defaultQu
         Ax0.resize(defaultQueue, A_.get_rows(),1);
         Ax0.sycl_assign_memory(defaultQueue,A_.get_rows());
         Ax0.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        
         tempZ.resize(defaultQueue, A_.get_rows(),1);
         tempZ.sycl_assign_memory(defaultQueue,A_.get_rows());
         tempZ.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
+        
         Ap.resize(defaultQueue, A_.get_rows(),1);
         Ap.sycl_assign_memory(defaultQueue,A_.get_rows());
         Ap.sycl_assign_vec_memory(defaultQueue,A_.get_rows());
@@ -197,9 +199,9 @@ std::pair<ITYPE, VTYPE> conjugate_gradient_1d<ITYPE, VTYPE>::solve(sycl::queue d
     {
         assert(((x_init.get_rows() == x_.get_rows()) && (x_init.get_cols() == x_.get_cols())) &&
                 "MUI Error [solver_cg.h]: Size of x_init matrix mismatch with size of x_ matrix");
-        x_.copy(x_init);
+        x_.copy(defaultQueue, x_init);
         Ax0.sycl_multiply(defaultQueue, A_, x_init);
-        r_.copy(b_-Ax0);
+        r_.copy(defaultQueue,b_-Ax0);
     }
     else 
     {

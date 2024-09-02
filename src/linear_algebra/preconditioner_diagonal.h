@@ -73,7 +73,36 @@ template<typename ITYPE, typename VTYPE>
 diagonal_preconditioner<ITYPE,VTYPE>::~diagonal_preconditioner() {
     // Deallocate the memory for the inverse diagonal matrix
     inv_diag_.set_zero();
+    sycl_z_.set_zero();
+
+    if (inv_diag_.matrix_sycl.values != nullptr)
+    {    
+        sycl::free(inv_diag_.matrix_sycl.values,sycl::queue{});
+    }
+    if (inv_diag_.matrix_sycl.row != nullptr)
+    { 
+        sycl::free(inv_diag_.matrix_sycl.row,sycl::queue{});
+    }
+    if(inv_diag_.matrix_sycl.column != nullptr)
+    {
+        sycl::free(inv_diag_.matrix_sycl.column,sycl::queue{});
+    }
+
+    if (sycl_z_.matrix_sycl.values != nullptr)
+    {    
+        sycl::free(sycl_z_.matrix_sycl.values,sycl::queue{});
+    }
+    if (sycl_z_.matrix_sycl.row != nullptr)
+    { 
+        sycl::free(sycl_z_.matrix_sycl.row,sycl::queue{});
+    }
+    if(sycl_z_.matrix_sycl.column != nullptr)
+    {
+        sycl::free(sycl_z_.matrix_sycl.column,sycl::queue{});
+    }
 }
+
+
 
 template<typename ITYPE, typename VTYPE>
 diagonal_preconditioner<ITYPE,VTYPE>::diagonal_preconditioner(sycl::queue defaultQueue, const sparse_matrix<ITYPE,VTYPE>& A) 
@@ -92,11 +121,11 @@ diagonal_preconditioner<ITYPE,VTYPE>::diagonal_preconditioner(sycl::queue defaul
     {
         if (std::abs(A.get_value(i,i)) >= std::numeric_limits<VTYPE>::min()) 
         {
-            inv_diag_.set_value(i, i, 1.0 / A.get_value(i,i));
+            inv_diag_.set_value(defaultQueue,i, i, 1.0 / A.get_value(i,i));
         } 
         else 
         {
-            inv_diag_.set_value(i, i, 1.0);
+            inv_diag_.set_value(defaultQueue,i, i, 1.0);
         }
     }
     inv_diag_.sycl_populate_diag(defaultQueue);

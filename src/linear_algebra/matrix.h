@@ -140,6 +140,8 @@ class sparse_matrix {
         void sycl_assign_zero(sycl::queue, VTYPE*, size_t);
         // Member function to copy a sparse_matrix
         void copy(const sparse_matrix<ITYPE,VTYPE> &);
+        // Member function to copy a sparse_matrix SYCL version
+        void copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
         // Member function to get a segment of a sparse_matrix
         void sycl_1d_mat_copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
         void sycl_1d_vec_copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
@@ -166,6 +168,7 @@ class sparse_matrix {
         
         // Member function to insert an element
         void set_value(ITYPE, ITYPE, VTYPE, bool = true);
+        void set_value(sycl::queue,ITYPE, ITYPE, VTYPE, bool = true);
         // Member function to insert the same value to all elements
         void set_value(VTYPE);
 
@@ -281,6 +284,7 @@ class sparse_matrix {
         // Protected member function for element operation of CSR matrix
         void csr_element_operation(ITYPE, ITYPE, VTYPE, const std::string &, const std::string & = {}, const std::string & = {});
 
+        void csr_element_operation(sycl::queue, ITYPE, ITYPE, VTYPE, const std::string &, const std::string & = {}, const std::string & = {});
         void csr_element_add_operation(ITYPE, ITYPE, VTYPE);
         // Protected member function for element operation of CSC matrix
         void csc_element_operation(ITYPE, ITYPE, VTYPE, const std::string &, const std::string & = {}, const std::string & = {});
