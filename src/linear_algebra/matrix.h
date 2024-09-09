@@ -206,6 +206,8 @@ class sparse_matrix {
         sparse_matrix<ITYPE,VTYPE>& operator=(const sparse_matrix<ITYPE,VTYPE> &);
         // Copy matrix and populate sycl matrix
         sparse_matrix<ITYPE,VTYPE>& copy_matrix_from(sycl::queue , const sparse_matrix<ITYPE,VTYPE> &);
+        // Copy matrix and populate sycl matrix
+        sparse_matrix<ITYPE,VTYPE>& fill_sycl_matrix(sycl::queue);
         // Member function to convert the format of the sparse matrix
         void format_conversion(const std::string & = "COO", bool = true, bool = false, const std::string & = "overwrite");
         // Member function to convert the format of the sparse matrix SYCL version

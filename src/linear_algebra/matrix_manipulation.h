@@ -1251,6 +1251,82 @@ sparse_matrix<ITYPE,VTYPE>& sparse_matrix<ITYPE,VTYPE>::copy_matrix_from(sycl::q
     return *this;
 }
 
+
+template <typename ITYPE, typename VTYPE>
+sparse_matrix<ITYPE,VTYPE>& sparse_matrix<ITYPE,VTYPE>::fill_sycl_matrix(sycl::queue q) {
+    if (this != NULL) 
+    { // check for self-assignment
+        // copy the values from the other matrix to this matrix
+        size_t nonzero;
+        size_t maj_ptrs;
+        // Copy the data from the existing matrix
+        if (matrix_format_ == format::COO) 
+        {
+            nonzero = matrix_coo.values_.size();
+            matrix_sycl.values = sycl::malloc_shared<VTYPE>(nonzero, q);
+            matrix_sycl.row = sycl::malloc_shared<ITYPE>(nonzero, q);
+            matrix_sycl.column = sycl::malloc_shared<ITYPE>(nonzero, q);
+          
+            for (int i=0; i<nonzero; i++)
+            {
+                matrix_sycl.values[i] = matrix_coo.values_[i];
+                matrix_sycl.row[i] = matrix_coo.row_indices_[i];
+                matrix_sycl.column[i] = matrix_coo.col_indices_[i];
+            }
+        }
+
+        else if (matrix_format_ == format::CSR) 
+        {
+            nonzero = matrix_csr.values_.size();
+            maj_ptrs = matrix_csr.row_ptrs_.size();
+            matrix_sycl.values = sycl::malloc_shared<VTYPE>(nonzero, q);
+            matrix_sycl.row = sycl::malloc_shared<ITYPE>(maj_ptrs, q);
+            matrix_sycl.column = sycl::malloc_shared<ITYPE>(nonzero, q);
+            for (int i=0;i<nonzero;i++)
+            {
+                matrix_sycl.values[i] = matrix_csr.values_[i];
+                matrix_sycl.column[i] = matrix_csr.col_indices_[i];
+            }
+            for (int i=0;i<maj_ptrs;i++)
+            {
+                matrix_sycl.row[i] = matrix_csr.row_ptrs_[i];
+            }
+           
+        }
+
+        else if (matrix_format_ == format::CSC) 
+        {
+            nonzero = matrix_csr.values_.size();
+            maj_ptrs = matrix_csr.row_ptrs_.size();
+            matrix_sycl.values = sycl::malloc_device<VTYPE>(nonzero, q);
+            matrix_sycl.row = sycl::malloc_device<ITYPE>(nonzero, q);
+            matrix_sycl.column = sycl::malloc_device<ITYPE>(maj_ptrs, q);
+            for (int i=0; i<nonzero; i++)
+            {
+                matrix_sycl.values[i] = matrix_csc.values_[i];
+                matrix_sycl.row[i] = matrix_csc.row_indices_[i];
+            }
+            
+            for (int i=0; i<maj_ptrs; i++)
+            {
+                matrix_sycl.column[i] = matrix_csc.col_ptrs_[i];
+            }
+
+        }
+
+        else 
+        {
+            std::cerr << "MUI Error [matrix_ctor_dtor.h]: Unrecognised matrix format for matrix constructor" << std::endl;
+            std::cerr << "    Please set the matrix_format_ as:" << std::endl;
+            std::cerr << "    format::COO: COOrdinate format" << std::endl;
+            std::cerr << "    format::CSR (default): Compressed Sparse Row format" << std::endl;
+            std::cerr << "    format::CSC: Compressed Sparse Column format" << std::endl;
+            std::abort();
+        }
+    }
+    return *this;
+}
+
 template<typename ITYPE, typename VTYPE>
 void sparse_matrix<ITYPE,VTYPE>::set_axpby(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> &Amat, VTYPE alpha, VTYPE beta, ITYPE size_row) 
 {

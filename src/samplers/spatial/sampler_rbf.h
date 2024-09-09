@@ -1520,8 +1520,7 @@ private:
                         {
                             REAL w = rbf(d);
                             Css_coo.set_value(i, j, w, false);
-                           
-                       
+                        
                             if (i != j) 
                             {
                                 Css_coo.set_value(j, i, w, false);
@@ -1535,7 +1534,6 @@ private:
                     Css_coo.set_value(i, NP, 1, false);
 
                     Css_coo.set_value(NP, i, 1, false);
-
 
                     INT glob_i = connectivityAB_[row][i];
 
@@ -1552,7 +1550,6 @@ private:
                 Css.sycl_assign_memory(q,mat_size);
                 Css.sycl_assign_vec_memory(q,mat_size);
                 Css.copy_matrix_from(q,Css_coo);
-                
          
                 linalg::sparse_matrix<INT, REAL> Aas_coo(q,(1 + NP + CONFIG::D),1,"COO");
 
@@ -1569,10 +1566,8 @@ private:
                     }
                 }
 
-               
                 Aas_coo.set_value(NP, 0, 1, false);
               
-
                 for (int dim = 0; dim < CONFIG::D; dim++) 
                 {
                     Aas_coo.set_value((NP + dim + 1), 0, data_points[row].first[dim], false);
@@ -1589,14 +1584,17 @@ private:
 
                 if (precond_ == 0) 
                 {
+                  //  std::cout << std::endl <<  " Updated R norm no preconditioner : " << std::endl;
                     linalg::conjugate_gradient<INT, REAL> cg(q,Css, Aas, cgSolveTol_, cgMaxIter_);
                     iterErrorReturn = cg.solve(q);
                     H_i = cg.getSolution();
                 }
                 else if (precond_ == 1) 
                 {
+                    
                     linalg::diagonal_preconditioner<INT, REAL> M(q,Css);
                     linalg::conjugate_gradient<INT, REAL> cg(q,Css, Aas, cgSolveTol_, cgMaxIter_, &M);
+                    //linalg::conjugate_gradient<INT, REAL> cg(q,Css, Aas, cgSolveTol_, cgMaxIter_);
                     iterErrorReturn = cg.solve(q);
                     H_i = cg.getSolution();
                 }

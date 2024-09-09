@@ -383,11 +383,12 @@ sparse_matrix<ITYPE,VTYPE>::sparse_matrix(sycl::queue q, const sparse_matrix<ITY
           copy_sycl_data(q,matrix_sycl.values,exist_mat.matrix_sycl.values,mat_size);
           copy_sycl_data(q,matrix_sycl.row,exist_mat.matrix_sycl.row,mat_row_size);
           copy_sycl_data(q,matrix_sycl.column,exist_mat.matrix_sycl.column,mat_col_size);
+          /*
           if (exist_mat.get_cols() == 1)
           {
             copy_sycl_data(q,matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.rows_);
           }
-          
+          */
           
       } 
       else if (matrix_format_ == format::CSC) 
@@ -408,7 +409,7 @@ sparse_matrix<ITYPE,VTYPE>::sparse_matrix(sycl::queue q, const sparse_matrix<ITY
           copy_sycl_data(q,matrix_sycl.values,exist_mat.matrix_sycl.values,mat_size);
           copy_sycl_data(q,matrix_sycl.row,exist_mat.matrix_sycl.row,mat_row_size);
           copy_sycl_data(q,matrix_sycl.column,exist_mat.matrix_sycl.column,mat_col_size);
-          copy_sycl_data(q,matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.cols_);
+        //  copy_sycl_data(q,matrix_sycl.vector_val,exist_mat.matrix_sycl.vector_val,exist_mat.cols_);
           
       } 
       else 
