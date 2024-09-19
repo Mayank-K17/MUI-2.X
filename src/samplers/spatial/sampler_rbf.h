@@ -894,10 +894,8 @@ private:
 
             }
         }
-        
         sycl::queue q{Devs[local_rank_]};
         
-
         std::pair<point_type, point_type> lbb = localBoundingBox(ptsExtend_);
         for (int i=0;i<data_points.size();i++) 
         {     
@@ -969,7 +967,8 @@ private:
         auto t2 = std::chrono::high_resolution_clock::now();
         if (conservative_) { // Conservative RBF, using local point set for size
            
-            if (pouEnabled_) { // PoU enabled so check patch size not larger than point set
+            if (pouEnabled_) 
+            { // PoU enabled so check patch size not larger than point set
                 if (ptsExtend_.size() < N_sp_)
                     N_sp_ = ptsExtend_.size();
             }
