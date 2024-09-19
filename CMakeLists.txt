@@ -10,13 +10,15 @@ else()
     message(STATUS "SYCL library found: ${SYCL_LIBRARY}")
 endif()
 
-set(CMAKE_CXX_COMPILER "$ENV{ONEAPI_ROOT}/compiler/latest/linux/bin/icpx")
-set(CMAKE_CXX_COMPILER_FLAGS "${CMAKE_CXX_COMPILER_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda -fsycl-unnamed-lambda -O3")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_BUILD_TYPE DEBUG)
+
+set(CMAKE_CXX_COMPILER "$ENV{ONEAPI_ROOT}/compiler/latest/linux/bin/icpx")
+set(CMAKE_CXX_COMPILER_FLAGS "${CMAKE_CXX_COMPILER_FLAGS} -fsycl -fsycl-targets=nvptx64-nvidia-cuda -fsycl-unnamed-lambda -O3")
+
 # Wrapper options
 option(C_WRAPPER "Compile C wrapper" OFF)
 option(FORTRAN_WRAPPER "Compile Fortran wrapper" OFF)

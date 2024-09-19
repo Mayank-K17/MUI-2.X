@@ -86,6 +86,7 @@ class conjugate_gradient_1d : public solver<ITYPE,VTYPE> {
         std::pair<ITYPE, VTYPE> solve(sycl::queue, sparse_matrix<ITYPE,VTYPE> = sparse_matrix<ITYPE,VTYPE>());
         // Member function to get the solution
         sparse_matrix<ITYPE,VTYPE> getSolution();
+         void copy_vecSolution(sycl::queue , sparse_matrix<ITYPE,VTYPE> &);
 
     private:
         // The coefficient matrix of the matrix equation

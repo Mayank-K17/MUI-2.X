@@ -72,24 +72,26 @@ diagonal_preconditioner<ITYPE,VTYPE>::diagonal_preconditioner(sycl::queue defaul
 {
     // Initialise the lower triangular matrix
     inv_diag_.resize(defaultQueue, A.get_rows(), A.get_cols());
-    inv_diag_.sycl_assign_memory(defaultQueue, A.get_rows(), A.get_cols());
     
     sycl_z_.resize(defaultQueue,A.get_rows(),1);
     sycl_z_.sycl_assign_memory(defaultQueue,A.get_rows(), 1);
     sycl_z_.sycl_assign_vec_memory(defaultQueue,A.get_rows());
-    inv_diag_.sycl_assign_vec_memory(defaultQueue,A.get_rows());
+    
     // Construct the inverse diagonal matrix
     for (int i = 0; i < A.get_rows(); i++) 
     {
         if (std::abs(A.get_value(i,i)) >= std::numeric_limits<VTYPE>::min()) 
         {
-            inv_diag_.set_value(defaultQueue,i, i, 1.0 / A.get_value(i,i));
+            inv_diag_.set_value(i, i, 1.0 / A.get_value(i,i));
         } 
         else 
         {
-            inv_diag_.set_value(defaultQueue,i, i, 1.0);
+            inv_diag_.set_value(i, i, 1.0);
         }
     }
+    size_t mat_size = inv_diag_.matrix_csr.values_.size();
+    inv_diag_.fill_sycl_matrix(defaultQueue);
+    inv_diag_.sycl_assign_vec_memory(defaultQueue,mat_size);
     inv_diag_.sycl_populate_diag(defaultQueue);
      
  }
@@ -98,33 +100,11 @@ template<typename ITYPE, typename VTYPE>
 diagonal_preconditioner<ITYPE,VTYPE>::~diagonal_preconditioner() {
     // Deallocate the memory for the inverse diagonal matrix
     inv_diag_.set_zero();
+    inv_diag_.sycl_set_zero();
     sycl_z_.set_zero();
+    sycl_z_.sycl_set_zero();
 
-    if (inv_diag_.matrix_sycl.values != nullptr)
-    {    
-        sycl::free(inv_diag_.matrix_sycl.values,sycl::queue{});
-    }
-    if (inv_diag_.matrix_sycl.row != nullptr)
-    { 
-        sycl::free(inv_diag_.matrix_sycl.row,sycl::queue{});
-    }
-    if(inv_diag_.matrix_sycl.column != nullptr)
-    {
-        sycl::free(inv_diag_.matrix_sycl.column,sycl::queue{});
-    }
-
-    if (sycl_z_.matrix_sycl.values != nullptr)
-    {    
-        sycl::free(sycl_z_.matrix_sycl.values,sycl::queue{});
-    }
-    if (sycl_z_.matrix_sycl.row != nullptr)
-    { 
-        sycl::free(sycl_z_.matrix_sycl.row,sycl::queue{});
-    }
-    if(sycl_z_.matrix_sycl.column != nullptr)
-    {
-        sycl::free(sycl_z_.matrix_sycl.column,sycl::queue{});
-    }
+    
 }
 
 

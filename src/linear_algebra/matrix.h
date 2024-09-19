@@ -99,6 +99,7 @@ class sparse_matrix {
         // Member function to print matrix vectors to the console
         void print_vectors() const;
         void print_sycl_vectors(ITYPE size_r) const ;
+        VTYPE get_sycl_vec_value(ITYPE ) const;
         // Member function to write matrix vectors to the file
         void write_vectors_to_file(const std::string &, const std::string & = {}, const std::string & = {}, const std::string & = {}) const;
         // Member function to read matrix vectors from the file
@@ -145,6 +146,7 @@ class sparse_matrix {
         // Member function to get a segment of a sparse_matrix
         void sycl_1d_mat_copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
         void sycl_1d_vec_copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &);
+        void sycl_1d_vec_copy(sycl::queue, const sparse_matrix<ITYPE,VTYPE> &,size_t);
         void sycl_copy_val_vector(sycl::queue );
         void sycl_copy_val_vector(sycl::queue , const sparse_matrix<ITYPE, VTYPE> &);
 
@@ -185,6 +187,7 @@ class sparse_matrix {
         // Member function to set all elements to zero and empty the sparse matrix
         void set_zero();
         void sycl_set_zero();
+        void sycl_set_zero(sycl::queue);
 
         void sycl_remove_element(sycl::queue, VTYPE *, ITYPE *, ITYPE, size_t);
 

@@ -73,6 +73,26 @@ void sparse_matrix<ITYPE,VTYPE>::print() const {
     }
 }
 
+template<typename ITYPE, typename VTYPE>
+void sparse_matrix<ITYPE,VTYPE>::print_sycl_vectors(ITYPE size_r) const 
+{
+    
+    for (int i=0;i<size_r;i++)
+    {
+        std::cout<< "Vector Element at index "<< i<< " is  : "<<matrix_sycl.vector_val[i] <<std::endl;
+    }
+     
+    
+}
+
+template<typename ITYPE, typename VTYPE>
+VTYPE sparse_matrix<ITYPE,VTYPE>::get_sycl_vec_value(ITYPE r) const
+{
+    VTYPE value;
+    value = matrix_sycl.vector_val[r];
+    return (value);
+}
+
 // Member function to print matrix vectors to the console
 template<typename ITYPE, typename VTYPE>
 void sparse_matrix<ITYPE,VTYPE>::print_vectors() const {

@@ -97,10 +97,15 @@ conjugate_gradient_1d<ITYPE, VTYPE>::conjugate_gradient_1d(sycl::queue defaultQu
         assert(b_.get_cols() == 1 &&
                 "MUI Error [solver_cg.h]: Number of column of b matrix must be 1");
        
+        
         A_.fill_sycl_matrix(defaultQueue);
         b_.fill_sycl_matrix(defaultQueue);
+        b_.sycl_assign_vec_memory(defaultQueue,b_.get_rows());
         b_.sycl_copy_val_vector(defaultQueue);
-    //  M_->inv_diag_.fill_sycl_matrix(defaultQueue);
+        
+        //b_.sycl_1d_vec_copy(defaultQueue, b, A_.get_rows());
+        
+        //M_->inv_diag_.fill_sycl_matrix(defaultQueue);
 
         x_.resize(defaultQueue, A_.get_rows(),1);
         x_.sycl_assign_memory(defaultQueue,A_.get_rows());
@@ -143,11 +148,11 @@ conjugate_gradient<ITYPE, VTYPE>::conjugate_gradient(sycl::queue defaultQueue, s
       {
         assert(A_.get_rows() == b_.get_rows() &&
                 "MUI Error [solver_cg.h]: Number of rows of A matrix must be the same as the number of rows of b matrix");
-        b_.sycl_assign_vec_memory(defaultQueue,b_.get_rows());
+        
         A_.fill_sycl_matrix(defaultQueue);
         b_.fill_sycl_matrix(defaultQueue);
+        b_.sycl_assign_vec_memory(defaultQueue,b_.get_rows());
         b_.sycl_copy_val_vector(defaultQueue);
-
     //    M_->inv_diag_.fill_sycl_matrix(defaultQueue);
         
         b_column_.resize(defaultQueue, b_.get_rows(),1);
@@ -174,11 +179,23 @@ template<typename ITYPE, typename VTYPE>
 conjugate_gradient_1d<ITYPE, VTYPE>::~conjugate_gradient_1d() {
     // Deallocate the memory for matrices
     A_.set_zero();
+    A_.sycl_set_zero();
     x_.set_zero();
+    x_.sycl_set_zero();
     b_.set_zero();
+    b_.sycl_set_zero();
     r_.set_zero();
+    r_.sycl_set_zero();
     z_.set_zero();
+    z_.sycl_set_zero();
     p_.set_zero();
+    p_.sycl_set_zero();
+    Ax0.set_zero();
+    Ax0.sycl_set_zero();
+    tempZ.set_zero();
+    tempZ.sycl_set_zero();
+    Ap.set_zero();
+    Ap.sycl_set_zero();
     // Set properties to null
     cg_solve_tol_ = 0;
     cg_max_iter_ = 0;
@@ -194,10 +211,17 @@ template<typename ITYPE, typename VTYPE>
 conjugate_gradient<ITYPE, VTYPE>::~conjugate_gradient() {
     // Deallocate the memory for matrices
     A_.set_zero();
+    A_.sycl_set_zero();
     x_.set_zero();
+    x_.sycl_set_zero();
     b_.set_zero();
+    b_.sycl_set_zero();
     b_column_.set_zero();
+    b_column_.sycl_set_zero();
     x_init_column_.set_zero();
+    x_init_column_.sycl_set_zero();
+    x_column.set_zero();
+    x_column.sycl_set_zero();
     // Set properties to null
     cg_solve_tol_ = 0;
     cg_max_iter_ = 0;
@@ -226,22 +250,20 @@ std::pair<ITYPE, VTYPE> conjugate_gradient_1d<ITYPE, VTYPE>::solve(sycl::queue d
     {
         
         r_.sycl_1d_vec_copy(defaultQueue,b_);
-        std::cout << std::endl <<  " Updated R norm : after CG" << std::endl;
+        
     }
  
    
     z_.sycl_1d_vec_copy(defaultQueue,r_);
-    
+   // z_.print_sycl_vectors(z_.get_rows());
     
 
     if (M_) 
-    {
-        
+    {   
         M_->apply(defaultQueue,tempZ,z_);
         z_.sycl_1d_vec_copy(defaultQueue,tempZ);
-        
     }
-    
+   
     p_.sycl_1d_vec_copy(defaultQueue,z_);
     x_.sycl_copy_val_vector(defaultQueue);
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -251,6 +273,8 @@ std::pair<ITYPE, VTYPE> conjugate_gradient_1d<ITYPE, VTYPE>::solve(sycl::queue d
     
     assert(std::abs(r_norm0) >= std::numeric_limits<VTYPE>::min() &&
             "MUI Error [solver_cg.h]: Divide by zero assert for r_norm0");
+
+    
     VTYPE r_norm = r_norm0;
     VTYPE r_norm_rel = std::sqrt(r_norm/r_norm0);
     ITYPE acturalKIterCount = 0;
@@ -448,15 +472,17 @@ std::pair<ITYPE, VTYPE> conjugate_gradient<ITYPE, VTYPE>::solve(sycl::queue defa
     std::pair<ITYPE, VTYPE> cgReturn;
     auto functime = 0.;
    
-    for (ITYPE j = 0; j <b_.get_cols(); ++j) 
-    {      
-        b_column_.sycl_segment_row(defaultQueue, b_, j);
+         
+        //b_column_.set_zero();
+        //b_column_.sycl_set_zero(defaultQueue);
+        //b_column_.sycl_segment_row(defaultQueue, b_, j);
+        //b_column_.print_sycl_vectors(b_column_.get_rows());
+
+        conjugate_gradient_1d<ITYPE, VTYPE> cg(defaultQueue, A_, b_, cg_solve_tol_, cg_max_iter_, M_);
         
-        conjugate_gradient_1d<ITYPE, VTYPE> cg(A_, b_column_, cg_solve_tol_, cg_max_iter_, M_);
-       
         if (!x_init.empty()) 
         {
-            x_init_column_.sycl_segment_row(defaultQueue, x_init, j);
+            x_init_column_.sycl_segment_row(defaultQueue, x_init, 1);
         }
 
        
@@ -472,28 +498,30 @@ std::pair<ITYPE, VTYPE> conjugate_gradient<ITYPE, VTYPE>::solve(sycl::queue defa
         if (cgReturn.first < cgReturnTemp.first)
             cgReturn.first = cgReturnTemp.first;
         cgReturn.second += cgReturnTemp.second;
-        /*
+        
         sparse_matrix<ITYPE,VTYPE> x_column(b_.get_rows(),1);
-        x_column.sycl_assign_vec_memory(b_.get_rows());
+        x_column.sycl_assign_vec_memory(defaultQueue, b_.get_rows());
         
         x_column = cg.getSolution();
-        cg.copy_vecSolution(defaultQueue, x_column );
+        //cg.copy_vecSolution(defaultQueue, x_column );
         for (ITYPE i = 0; i < x_column.get_rows(); ++i) 
         {
-              x_.set_value(i, j, x_column.get_sycl_vec_value(i));
+              x_.set_value(i,0, x_column.get_sycl_vec_value(i));
         }
-        */
-    }
-    cgReturn.second /= b_.get_cols();
-    std::cout << "Total residuals = " << (cgReturn.second) <<std::endl;
-    std::cout << "Total CG function time = " << (functime/1000) <<std::endl;
-    return cgReturn;
+        
+        cgReturn.second /= b_.get_cols();
+        return cgReturn;
 }
 
 // Member function for one-dimensional Conjugate Gradient solver to get the solution
 template<typename ITYPE, typename VTYPE>
 sparse_matrix<ITYPE,VTYPE> conjugate_gradient_1d<ITYPE, VTYPE>::getSolution() {
     return x_;
+}
+template<typename ITYPE, typename VTYPE>
+void conjugate_gradient_1d<ITYPE, VTYPE>::copy_vecSolution(sycl::queue defaultQueue, sparse_matrix<ITYPE,VTYPE> &CopyMat ) 
+{
+    CopyMat.sycl_1d_vec_copy(defaultQueue, x_);
 }
 
 // Member function for multidimensional Conjugate Gradient solver to get the solution

@@ -881,10 +881,10 @@ private:
 
       // Refine partition size depending on if PoU enabled, whether conservative or consistent
         // and if problem size smaller than defined patch size
-         auto matrix_time = 0.;
-      auto connectivity_time = 0.;
-      auto smoothing_matrix_time = 0.;
-     
+        auto matrix_time = 0.;
+        auto connectivity_time = 0.;
+        auto smoothing_matrix_time = 0.;
+        
         std::vector<sycl::device> Devs;
         for (const auto &plt : sycl::platform::get_platforms()) 
         {
@@ -894,7 +894,10 @@ private:
 
             }
         }
+        
         sycl::queue q{Devs[local_rank_]};
+        
+
         std::pair<point_type, point_type> lbb = localBoundingBox(ptsExtend_);
         for (int i=0;i<data_points.size();i++) 
         {     
@@ -1125,6 +1128,7 @@ private:
         if (conservative_) 
         { 
             // Build matrix for conservative RBF
+
             errorReturn = buildMatrixConservative(q,data_points, N_sp_, M_ap_, smoothFunc_, pouEnabled_, fileAddress);
 
        //     std::cout << "MUI [sampler_rbf.h]:build Connectivity matrix conservative after smooth "
@@ -1544,13 +1548,14 @@ private:
                         Css_coo.set_value((NP + dim + 1), i, ptsExtend_[glob_i][dim], false);
                     }
                 }
-                //Css = Css_coo;
+                Css = Css_coo;
 
                 mat_size = Css_coo.matrix_coo.values_.size();
-                Css.sycl_assign_memory(q,mat_size);
+                std::cout<<"Format is " << Css.get_format()<<"Mat value is: "<<mat_size<<std::endl;
+                //Css.sycl_assign_memory(q,mat_size);
+                
+                Css.fill_sycl_matrix(q);
                 Css.sycl_assign_vec_memory(q,mat_size);
-                Css.copy_matrix_from(q,Css_coo);
-         
                 linalg::sparse_matrix<INT, REAL> Aas_coo(q,(1 + NP + CONFIG::D),1,"COO");
 
                 for (size_t j = 0; j < NP; j++) 
@@ -1574,12 +1579,17 @@ private:
         
                 }
 
-                //Aas = Aas_coo;
+                Aas = Aas_coo;
                 mat_size = Aas_coo.matrix_coo.values_.size();
-                Aas.sycl_assign_memory(q,mat_size);
-                Aas.sycl_assign_vec_memory(q,row);
-                Aas.copy_matrix_from(q,Aas_coo);
+                std::cout<<"Mat value is: "<<mat_size<<std::endl;
+
+                //Aas.sycl_assign_memory(q,mat_size);
                 
+                Aas.fill_sycl_matrix(q);
+                Aas.sycl_assign_vec_memory(q,Aas.get_rows());
+                Aas.sycl_copy_val_vector(q);
+
+                              
                 linalg::sparse_matrix<INT, REAL> H_i;
 
                 if (precond_ == 0) 
@@ -1593,10 +1603,13 @@ private:
                 {
                     
                     linalg::diagonal_preconditioner<INT, REAL> M(q,Css);
+                    //std::cout<<"Diagonal preconditioner at row id:"<<row<<std::endl;
                     linalg::conjugate_gradient<INT, REAL> cg(q,Css, Aas, cgSolveTol_, cgMaxIter_, &M);
+                    std::cout<<"CG at row id:"<<row<< " : Out of :"<<data_points.size()<<std::endl;
                     //linalg::conjugate_gradient<INT, REAL> cg(q,Css, Aas, cgSolveTol_, cgMaxIter_);
                     iterErrorReturn = cg.solve(q);
                     H_i = cg.getSolution();
+                    
                 }
                 else 
                 {
@@ -1608,7 +1621,7 @@ private:
                             << std::endl << "precond_=1 (Diagonal Preconditioner); " << std::endl;
                     std::abort();
                 }
-
+                
                 //solver_time = solver_time + (std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count());
        
                 if (DEBUG) 
@@ -1638,6 +1651,10 @@ private:
                     
                     }
                 }
+                Css.sycl_set_zero();
+                Aas.sycl_set_zero();
+                Css_coo.sycl_set_zero();
+                Aas_coo.sycl_set_zero();
         //        t2 = std::chrono::high_resolution_clock::now();
         //        smooth_mat_time = smooth_mat_time + (std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count());
             }
